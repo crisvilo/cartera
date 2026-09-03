@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Cartera</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="navbar">
+  <div class="brand-area">
+    <button id="btn-menu" class="menu-toggle hidden" type="button" aria-label="Abrir menú">☰</button>
+    <div><h1>Gestión de Cartera</h1><p class="navbar-subtitle">Llamadas de cobro y seguimiento de clientes</p></div>
+  </div>
+  <div id="session-area" class="session-area hidden">
+    <div class="user-chip"><span class="user-avatar" id="user-avatar">A</span><div><strong id="user-name">Usuario</strong><small id="user-role">Asesor</small></div></div>
+    <button id="btn-logout" class="btn-logout" type="button">Cerrar sesión</button>
+  </div>
+</header>
+
+<div id="app-shell" class="app-shell">
+  <aside id="sidebar" class="sidebar hidden">
+    <div class="sidebar-head"><div class="sidebar-logo">✦</div><div><strong id="sidebar-user-name">Usuario</strong><small id="sidebar-user-role">Asesor</small></div><button id="btn-close-menu" class="sidebar-close" type="button">×</button></div>
+    <nav id="sidebar-nav" class="sidebar-nav"></nav>
+  </aside>
+  <main class="container">
+
+    <section id="auth-view" class="auth-layout">
+      <div class="auth-card card">
+        <div class="auth-brand"><span class="auth-icon">✦</span><div><span class="eyebrow">SISTEMA DE CARTERA</span><h2>Iniciar sesión</h2></div></div>
+        <p class="auth-description">Ingresa con tu cuenta de asesor o administrador de Cartera.</p>
+        <form id="login-form" class="auth-form">
+          <div class="form-group"><label for="login-email">Correo electrónico <span>*</span></label><input id="login-email" type="email" autocomplete="email" required placeholder="correo@ejemplo.com"></div>
+          <div class="form-group"><label for="login-password">Contraseña <span>*</span></label><input id="login-password" type="password" autocomplete="current-password" required placeholder="••••••••"></div>
+          <button class="btn-primary btn-full" type="submit">Ingresar</button>
+        </form>
+        <div class="auth-divider"><span>¿Eres asesor?</span></div>
+        <button id="btn-show-register" class="btn-secondary btn-full" type="button">Crear cuenta de asesor</button>
+        <p class="auth-note">El administrador no se registra desde esta pantalla. Su cuenta se configura directamente en Supabase.</p>
+      </div>
+    </section>
+
+    <section id="register-view" class="auth-layout hidden">
+      <div class="auth-card card auth-card-wide">
+        <div class="auth-brand"><span class="auth-icon">+</span><div><span class="eyebrow">NUEVO ASESOR</span><h2>Registro de asesor de Cartera</h2></div></div>
+        <p class="auth-description">Registra tus datos como asesor de Cartera. Las zonas se seleccionan en cada llamada.</p>
+        <form id="register-form" class="register-grid">
+          <div class="form-group"><label for="reg-nombre">Nombre <span>*</span></label><input id="reg-nombre" type="text" required></div>
+          <div class="form-group"><label for="reg-apellido">Apellido <span>*</span></label><input id="reg-apellido" type="text" required></div>
+          <div class="form-group"><label for="reg-documento">Documento</label><input id="reg-documento" type="text"></div>
+          <div class="form-group"><label for="reg-telefono">Teléfono</label><input id="reg-telefono" type="tel"></div>
+          <div class="form-group"><label for="reg-email">Correo electrónico <span>*</span></label><input id="reg-email" type="email" required></div>
+          <div class="form-group"><label for="reg-password">Contraseña <span>*</span></label><input id="reg-password" type="password" minlength="6" required></div>
+          <div class="form-group"><label for="reg-password-confirm">Confirmar contraseña <span>*</span></label><input id="reg-password-confirm" type="password" minlength="6" required></div>
+          <div class="form-actions form-actions-wide"><button id="btn-back-login" type="button" class="btn-secondary">Volver al inicio</button><button type="submit" class="btn-primary">Registrar asesor</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section id="vista-asesor" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">DASHBOARD ASESOR</span><h2>Mi resumen de cartera</h2><p id="asesor-welcome">Consulta tus llamadas del mes.</p></div></div>
+      <div class="stats-grid">
+        <div class="card stat-card"><div class="stat-icon">#</div><div><h3>Llamadas realizadas</h3><p id="asesor-total-count">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">✓</div><div><h3>Contestadas</h3><p id="asesor-contestadas-count">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">✕</div><div><h3>No contestadas</h3><p id="asesor-nocontestadas-count">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">$</div><div><h3>Pagos confirmados</h3><p id="asesor-pagos-count">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">◷</div><div><h3>Compromisos de pago</h3><p id="asesor-compromisos-count">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">◎</div><div><h3>Meta asignada</h3><p id="asesor-meta-count">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">%</div><div><h3>Avance de la meta</h3><p id="asesor-meta-pct">0%</p><div class="mini-progress"><span id="asesor-meta-bar" style="width:0%"></span></div></div></div>
+      </div>
+
+      <div class="card form-card" id="asesor-form-section">
+        <div class="card-heading"><div><span class="section-kicker">NUEVA LLAMADA</span><h3>Registrar llamada de cartera</h3></div><span id="asesor-zone-badge" class="zone-badge">Zona: —</span></div>
+        <form id="call-form" class="sale-grid">
+          <div class="form-group"><label for="cliente">Cliente <span>*</span></label><input type="text" id="cliente" required placeholder="Nombre o código de cliente"></div>
+          <div class="form-group"><label for="tipoLlamada">Llamada <span>*</span></label><select id="tipoLlamada" required><option value="">Seleccione...</option><option value="Contestada">Contestada</option><option value="No contestada">No contestada</option><option value="Equivocada">Equivocada</option></select></div>
+          <div class="form-group"><label for="zona">Zona de la llamada <span>*</span></label><select id="zona" required><option value="">Seleccione la zona...</option><option value="San Marcos">San Marcos</option><option value="Caucasia">Caucasia</option><option value="Montelíbano">Montelíbano</option><option value="La Apartada">La Apartada</option><option value="Buenavista">Buenavista</option></select></div>
+                    <div class="form-group"><label for="fechaLlamada">Fecha de la llamada <span>*</span></label><input type="date" id="fechaLlamada" required></div>
+
+          <div class="form-group"><label for="whatsappEnviado">WhatsApp</label><select id="whatsappEnviado"><option value="false">No se contactó</option><option value="true">Se envió mensaje</option></select></div>
+          <div class="form-group form-group-wide hidden" id="whatsappMensajeGroup"><label for="whatsappMensaje">Mensaje enviado</label><input type="text" id="whatsappMensaje" placeholder="Ej. Recordatorio de pago enviado"></div>
+          <div class="form-group form-group-wide hidden" id="whatsappRespuestaGroup"><label for="whatsappRespuesta">Respuesta del cliente</label><input type="text" id="whatsappRespuesta" placeholder="Ej. Confirmó que pagará el viernes"></div>
+
+          <div class="form-group"><label for="compromisoPago">Compromiso de pago</label><select id="compromisoPago"><option value="false">No</option><option value="true">Sí</option></select></div>
+          <div class="form-group hidden" id="fechaCompromisoGroup"><label for="fechaCompromiso">Fecha del compromiso</label><input type="date" id="fechaCompromiso"></div>
+          <div class="form-group"><label for="pago">Pago</label><select id="pago"><option value="false">No</option><option value="true">Sí</option></select></div>
+
+          <div class="form-group form-group-wide"><label for="observaciones">Observaciones</label><input type="text" id="observaciones" placeholder="Notas adicionales de la llamada"></div>
+
+          <div class="form-group form-group-wide"><label class="survey-switch"><input type="checkbox" id="incluirEncuesta"><span class="switch-ui" aria-hidden="true"></span><span><strong>Activar encuesta</strong><small>Diligenciar las 7 preguntas de satisfacción para esta llamada.</small></span></label></div>
+          <fieldset id="encuesta-fields" class="encuesta-fieldset hidden">
+            <legend>Encuesta de satisfacción <small>7 respuestas</small></legend>
+            <div class="encuesta-intro">Completa la información del usuario y las 6 preguntas de satisfacción. Las observaciones permiten ampliar la respuesta cuando sea necesario.</div>
+            <div class="encuesta-grid">
+              <div class="encuesta-question encuesta-question-wide"><span class="question-number">01</span><div class="form-group"><label for="encCodigoUsuario">Usuario encuestado — código y nombre completo</label><input type="text" id="encCodigoUsuario" placeholder="Código y nombre del usuario" required></div></div>
+              <div class="encuesta-question"><span class="question-number">02</span><div class="form-group"><label for="encServicio">¿Cómo califica el servicio prestado?</label><select id="encServicio"><option value="">Seleccione...</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
+              <div class="encuesta-question"><span class="question-number">03</span><div class="form-group"><label for="encTecnica">¿Cómo califica la atención del área técnica?</label><select id="encTecnica"><option value="">Seleccione...</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
+              <div class="encuesta-question"><span class="question-number">04</span><div class="form-group"><label for="encAdministrativa">¿Cómo califica la atención del área administrativa?</label><select id="encAdministrativa"><option value="">Seleccione...</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
+              <div class="encuesta-question"><span class="question-number">05</span><div class="form-group"><label for="encAverias">¿Cómo califica la agilidad frente a daños o averías?</label><select id="encAverias"><option value="">Seleccione...</option><option>AGIL</option><option>DEMORADOS</option><option>MUY DEMORADOS</option><option>NI DEMORADOS NI AGIL</option></select></div></div>
+              <div class="encuesta-question"><span class="question-number">06</span><div class="form-group"><label for="encRecomendaria">¿Recomendaría nuestros servicios?</label><select id="encRecomendaria"><option value="">Seleccione...</option><option>SI</option><option>NO</option></select></div></div>
+              <div class="encuesta-question encuesta-question-wide"><span class="question-number">07</span><div class="form-group"><label for="encRecomendacion">¿Tiene alguna recomendación o felicitación?</label><textarea id="encRecomendacion" rows="3" placeholder="Escriba aquí la recomendación, comentario o felicitación"></textarea></div></div>
+              <div class="encuesta-observaciones">
+                <div class="form-group"><label for="encServicioObs">Observación adicional — servicio</label><textarea id="encServicioObs" rows="2"></textarea></div>
+                <div class="form-group"><label for="encTecnicaObs">Observación adicional — técnica</label><textarea id="encTecnicaObs" rows="2"></textarea></div>
+                <div class="form-group"><label for="encAdministrativaObs">Observación adicional — administrativa</label><textarea id="encAdministrativaObs" rows="2"></textarea></div>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="form-actions form-actions-wide"><button type="reset" class="btn-secondary">Limpiar</button><button type="submit" class="btn-primary">Registrar llamada</button></div>
+        </form>
+      </div>
+
+      <div class="card table-card"><div class="card-heading table-heading"><div><span class="section-kicker">HISTORIAL</span><h3>Mis llamadas</h3></div><div class="table-tools"><input id="filtroAsesor" type="search" placeholder="Buscar cliente, zona u observación..."><button id="btn-asesor-report" class="btn-secondary" type="button">👁 Ver mi reporte</button><button id="btn-asesor-print" class="btn-secondary" type="button">🖨 Imprimir</button><button id="btn-asesor-pdf" class="btn-primary" type="button">📄 Descargar PDF</button></div></div><div class="table-wrapper"><table><thead><tr><th>ID</th><th>Cliente</th><th>Llamada</th><th>Zona</th><th>WhatsApp</th><th>Compromiso</th><th>Pago</th><th>Fecha</th></tr></thead><tbody id="tabla-asesor"></tbody></table></div></div>
+
+      <div class="card table-card"><div class="card-heading"><div><span class="section-kicker">SEGUIMIENTO</span><h3>Veces que he contactado a cada cliente este mes</h3></div></div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Llamadas</th><th>Contestadas</th><th>No contestadas</th><th>Compromisos</th><th>Pagos</th></tr></thead><tbody id="tabla-seguimiento-asesor"></tbody></table></div></div>
+    </section>
+
+    <section id="admin-dashboard" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Dashboard general de cartera</h2><p>Visión global de llamadas, pagos y compromisos.</p></div></div>
+      <div class="stats-grid admin-stats">
+        <div class="card stat-card"><div class="stat-icon">#</div><div><h3>Llamadas</h3><p id="dash-total">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">✓</div><div><h3>Contestadas</h3><p id="dash-contestadas">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">✕</div><div><h3>No contestadas</h3><p id="dash-nocontestadas">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">◷</div><div><h3>Compromisos</h3><p id="dash-compromisos">0</p></div></div>
+        <div class="card stat-card"><div class="stat-icon">$</div><div><h3>Pagos</h3><p id="dash-pagos">0</p></div></div>
+      </div>
+      <div class="dashboard-grid"><div class="card dashboard-card"><span class="section-kicker">CUMPLIMIENTO</span><h3>Meta de llamadas por asesor</h3><div id="dash-goals-list" class="goal-chart"></div></div><div class="card dashboard-card"><span class="section-kicker">TIPO DE LLAMADA</span><h3>Distribución mensual</h3><div id="dash-services-list" class="mini-bars"></div></div></div>
+    </section>
+
+    <section id="vista-admin" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">LLAMADAS</span><h2>Gestión de cartera</h2><p>Consulta, filtra y descarga el detalle de las llamadas registradas.</p></div></div>
+      <div class="card filters-card"><div class="card-heading"><div><span class="section-kicker">REPORTES</span><h3>Filtros de consulta</h3></div><div class="filter-actions"><button id="btn-clear-filters" class="btn-secondary" type="button">Limpiar filtros</button><button id="btn-preview-report" class="btn-secondary" type="button">👁 Vista previa</button><button id="btn-print-report" class="btn-primary" type="button">🖨 Imprimir</button><button id="btn-pdf-report" class="btn-primary" type="button">📄 Descargar PDF</button><button id="btn-excel-report" class="btn-secondary" type="button">📊 Descargar Excel</button></div></div><div class="filters-grid">
+        <div class="form-group"><label for="filtroAdminTexto">Buscar</label><input id="filtroAdminTexto" type="search" placeholder="Cliente, zona, observaciones..."></div>
+        <div class="form-group"><label for="filtroAsesorAdmin">Asesor</label><select id="filtroAsesorAdmin"><option value="">Todos los asesores</option></select></div>
+        <div class="form-group"><label for="filtroLlamadaAdmin">Llamada</label><select id="filtroLlamadaAdmin"><option value="">Todas</option><option value="Contestada">Contestadas</option><option value="No contestada">No contestadas</option><option value="Equivocada">Equivocadas</option></select></div>
+        <div class="form-group"><label for="filtroCompromisoAdmin">Compromiso</label><select id="filtroCompromisoAdmin"><option value="">Todos</option><option value="true">Con compromiso</option><option value="false">Sin compromiso</option></select></div>
+        <div class="form-group"><label for="filtroPagoAdmin">Pago</label><select id="filtroPagoAdmin"><option value="">Todos</option><option value="true">Pagó</option><option value="false">No pagó</option></select></div>
+        <div class="form-group"><label for="filtroZonaAdmin">Zona</label><select id="filtroZonaAdmin"><option value="">Todas las zonas</option><option>San Marcos</option><option>Caucasia</option><option>Montelíbano</option><option>La Apartada</option><option>Buenavista</option></select></div>
+        <div class="form-group"><label for="filtroDesdeAdmin">Fecha desde</label><input id="filtroDesdeAdmin" type="date"></div><div class="form-group"><label for="filtroHastaAdmin">Fecha hasta</label><input id="filtroHastaAdmin" type="date"></div>
+      </div></div>
+      <div class="card table-card"><div class="card-heading table-heading"><div><span class="section-kicker">RESUMEN</span><h3>Llamadas por asesor</h3><p class="muted">Una sola fila por asesor para consultar rápidamente contestadas, no contestadas y WhatsApp.</p></div><div class="table-tools"><span id="admin-result-count" class="result-count">0 resultados</span><button id="btn-preview-advisor-summary" class="btn-secondary" type="button">👁 Vista previa</button><button id="btn-print-advisor-summary" class="btn-primary" type="button">🖨 Imprimir</button><button id="btn-pdf-advisor-summary" class="btn-primary" type="button">📄 PDF</button><button id="btn-excel-advisor-summary" class="btn-secondary" type="button">📊 Excel</button></div></div><div class="table-wrapper"><table class="advisor-call-summary-table"><thead><tr><th>Asesor</th><th>Total</th><th>Contestadas</th><th>No contestadas</th><th>WhatsApp</th><th>Compromisos</th><th>Pagos</th><th>Zonas</th></tr></thead><tbody id="tabla-admin"></tbody></table></div></div>
+
+       <div class="card table-card"><div class="card-heading table-heading"><div><span class="section-kicker">DETALLE</span><h3>Detalle de llamadas registradas</h3></div></div><div class="table-wrapper"><table class="admin-operation-table"><thead><tr><th>ID</th><th>Asesor</th><th>Cliente</th><th>Llamada</th><th>Zona</th><th>WhatsApp</th><th>Compromiso</th><th>Pago</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody id="tabla-admin-detail"></tbody></table></div></div>
+
+      <div class="card table-card"><div class="card-heading"><div><span class="section-kicker">SEGUIMIENTO</span><h3>Veces que se ha contactado a cada cliente (según filtros)</h3></div></div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Llamadas</th><th>Contestadas</th><th>No contestadas</th><th>Compromisos</th><th>Pagos</th><th>Asesor(es)</th></tr></thead><tbody id="tabla-seguimiento-admin"></tbody></table></div></div>
+    </section>
+
+    <section id="vista-encuestas" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Reporte de encuestas</h2><p>Relaciona cada llamada con sus 7 respuestas para identificar oportunidades de mejora.</p></div></div>
+      <div class="card filters-card">
+        <div class="card-heading"><div><span class="section-kicker">FILTROS</span><h3>Consultar encuestas</h3></div><div class="filter-actions"><button id="btn-clear-survey-filters" class="btn-secondary" type="button">Limpiar</button><button id="btn-preview-survey-report" class="btn-secondary" type="button">👁 Vista previa</button><button id="btn-print-survey-report" class="btn-primary" type="button">🖨 Imprimir</button><button id="btn-pdf-survey-report" class="btn-primary" type="button">📄 Descargar PDF</button><button id="btn-excel-survey-report" class="btn-secondary" type="button">📊 Excel</button></div></div>
+        <div class="filters-grid survey-filters">
+          <div class="form-group"><label for="filtroEncuestaAsesor">Asesor</label><select id="filtroEncuestaAsesor"><option value="">Todos los asesores</option></select></div>
+          <div class="form-group"><label for="filtroEncuestaDesde">Fecha desde</label><input id="filtroEncuestaDesde" type="date"></div>
+          <div class="form-group"><label for="filtroEncuestaHasta">Fecha hasta</label><input id="filtroEncuestaHasta" type="date"></div>
+          <div class="form-group"><label for="filtroEncuestaTexto">Buscar</label><input id="filtroEncuestaTexto" type="search" placeholder="Usuario, asesor o respuesta..."></div>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="card-heading table-heading"><div><span class="section-kicker">RESULTADOS</span><h3>Respuestas por asesor</h3></div><span id="survey-result-count" class="result-count">0 encuestas</span></div>
+        <div class="table-wrapper survey-table-wrapper"><table class="survey-admin-table"><thead><tr><th>Fecha</th><th>Asesor</th><th>Cliente</th><th>Zona</th><th>Llamada</th><th>01. Usuario encuestado</th><th>02. Servicio</th><th>03. Técnica</th><th>04. Administrativa</th><th>05. Averías</th><th>06. Recomendaría</th><th>07. Recomendación / felicitación</th><th>Obs. servicio</th><th>Obs. técnica</th><th>Obs. administrativa</th></tr></thead><tbody id="tabla-encuestas"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="vista-usuarios" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Asesores</h2><p>Crea, edita, actualiza, inhabilita o elimina asesores de Cartera y define su meta de llamadas. Los asesores pueden registrar llamadas en cualquier zona.</p></div></div>
+      <div class="card form-card"><div class="card-heading"><div><span class="section-kicker">NUEVO ASESOR</span><h3>Crear asesor</h3></div></div><form id="admin-user-form" class="register-grid"><input type="hidden" id="admin-user-id"><div class="form-group"><label for="admin-user-nombre">Nombre *</label><input id="admin-user-nombre" required></div><div class="form-group"><label for="admin-user-apellido">Apellido *</label><input id="admin-user-apellido" required></div><div class="form-group"><label for="admin-user-documento">Documento</label><input id="admin-user-documento"></div><div class="form-group"><label for="admin-user-telefono">Teléfono</label><input id="admin-user-telefono"></div><div class="form-group"><label for="admin-user-meta">Meta de llamadas *</label><input id="admin-user-meta" type="number" min="0" step="1" value="500" required></div><div class="form-group"><label for="admin-user-email">Correo *</label><input id="admin-user-email" type="email" required></div><div class="form-group"><label for="admin-user-password">Contraseña</label><input id="admin-user-password" type="password" minlength="6" placeholder="Solo al crear"></div><div class="form-actions form-actions-wide"><button id="btn-cancel-user-edit" class="btn-secondary hidden" type="button">Cancelar edición</button><button id="btn-save-user" class="btn-primary" type="submit">Crear asesor</button></div></form></div>
+      <div class="card table-card"><div class="card-heading"><div><span class="section-kicker">ASESORES</span><h3>Asesores registrados</h3></div></div><div class="table-wrapper"><table class="users-table"><thead><tr><th>Asesor</th><th>Correo</th><th>Meta</th><th>Llamadas</th><th>% Meta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tabla-usuarios"></tbody></table></div></div>
+    </section>
+
+    <section id="vista-configuracion" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">PERSONALIZACIÓN</span><h2>Configuración</h2><p>Personaliza el color del sistema y la identidad visual del reporte.</p></div></div>
+      <div class="card form-card config-card"><div class="config-preview"><div id="logo-preview" class="logo-preview"><span>LOGO</span></div><div><h3>Identidad del reporte</h3><p>La imagen se mostrará en la parte superior de los reportes impresos y PDF.</p></div></div><form id="config-form" class="config-grid"><div class="form-group"><label for="config-color">Color principal</label><input id="config-color" type="color" value="#0ea5e9"></div><div class="form-group"><label for="config-logo">Imagen de empresa</label><input id="config-logo" type="file" accept="image/png,image/jpeg,image/webp"></div><div class="form-actions form-actions-wide"><button type="submit" class="btn-primary">Guardar configuración</button><button id="btn-remove-logo" type="button" class="btn-secondary">Quitar imagen</button></div></form></div>
+    </section>
+
+    <section id="vista-respaldo" class="view hidden">
+      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Respaldo de información</h2><p>Descarga una copia completa de todas las llamadas y asesores registrados, sin importar los filtros aplicados en otras secciones.</p></div></div>
+      <div class="card form-card">
+        <div class="card-heading"><div><span class="section-kicker">RESPALDO COMPLETO</span><h3>Copia de seguridad en Excel</h3></div></div>
+        <p class="muted">Genera un archivo <strong>.xlsx</strong> con tres hojas: <strong>Llamadas</strong>, <strong>Encuestas</strong> y <strong>Perfiles</strong>. Guarda este archivo en un lugar seguro periódicamente.</p>
+        <div class="form-actions"><button id="btn-download-backup" class="btn-primary" type="button">⭳ Descargar respaldo completo</button></div>
+        <p id="backup-status" class="muted backup-status"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="report-preview-modal" class="report-preview-modal hidden" aria-hidden="true"><div class="report-preview-dialog"><div class="report-preview-head"><div><span class="section-kicker">VISTA PREVIA</span><h3>Reporte de cartera</h3></div><button id="btn-close-report-preview" class="btn-secondary" type="button">✕ Cerrar</button></div><div id="report-preview-content" class="report-preview-content"></div></div></div><div id="print-report" class="print-only"></div><div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="update-banner" class="update-banner hidden"><span>Hay una nueva versión disponible.</span><button id="btn-update-now" type="button">Actualizar ahora</button></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        reg.update();
+        const showUpdateBanner = (worker) => {
+          const banner = document.getElementById('update-banner');
+          banner.classList.remove('hidden');
+          document.getElementById('btn-update-now').onclick = () => worker.postMessage('SKIP_WAITING');
+        };
+        if (reg.waiting) showUpdateBanner(reg.waiting);
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showUpdateBanner(newWorker);
+            }
+          });
+        });
+      }).catch((err) => console.error('No se pudo registrar el service worker:', err));
+      let refrescado = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refrescado) return;
+        refrescado = true;
+        window.location.reload();
+      });
+    });
+  }
+</script>
+</body>
+</html>
