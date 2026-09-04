@@ -40,7 +40,7 @@
     ["filtroAdminTexto","filtroAsesorAdmin","filtroLlamadaAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x => { id(x).addEventListener("input", renderAdmin); id(x).addEventListener("change", renderAdmin); });
     id("btn-clear-filters").addEventListener("click", clearAdminFilters); id("btn-preview-report").addEventListener("click", () => previewReport()); id("btn-close-report-preview").addEventListener("click", closeReportPreview); id("btn-print-report").addEventListener("click", () => printReport()); id("btn-pdf-report").addEventListener("click", () => downloadPDF()); id("btn-excel-report").addEventListener("click", downloadExcel);
     id("btn-preview-advisor-summary").addEventListener("click", () => previewReport(buildAdvisorSummaryReportHTML)); id("btn-print-advisor-summary").addEventListener("click", () => printReport(buildAdvisorSummaryReportHTML)); id("btn-pdf-advisor-summary").addEventListener("click", () => downloadPDF(buildAdvisorSummaryReportHTML,"resumen-llamadas-por-asesor")); id("btn-excel-advisor-summary").addEventListener("click", downloadAdvisorSummaryExcel);
-    id("admin-user-form").addEventListener("submit", saveAdminUser); id("admin-survey-form").addEventListener("submit", saveAdminSurvey); id("adminSurveyLlamada").addEventListener("change", updateAdminSurveyCallInfo); id("btn-cancel-user-edit").addEventListener("click", resetUserForm);
+    id("admin-user-form").addEventListener("submit", saveAdminUser); id("admin-survey-form").addEventListener("submit", saveAdminSurvey); id("btn-cancel-user-edit").addEventListener("click", resetUserForm);
     ["filtroEncuestaAsesor","filtroEncuestaDesde","filtroEncuestaHasta","filtroEncuestaTexto"].forEach(x => { if(id(x)){ id(x).addEventListener("input", renderSurveys); id(x).addEventListener("change", renderSurveys); }});
     id("btn-clear-survey-filters").addEventListener("click", clearSurveyFilters);
     id("btn-preview-survey-report").addEventListener("click", () => previewReport(buildSurveyReportHTML));
@@ -87,7 +87,7 @@
     ]);
     if(cr.error){console.error(cr.error);showToast("No fue posible cargar las llamadas.",true);return;} if(ar.error){console.error(ar.error);showToast("No fue posible cargar los asesores.",true);return;}
     if(er.error){console.error(er.error);showToast("No fue posible cargar las encuestas. Ejecuta la estructura SQL de Cartera.",true);return;}
-    calls=cr.data||[]; advisors=ar.data||[]; surveys=er.data||[]; populateAdminFilters(); populateSurveyFilters(); populateAdminSurveyCalls(); renderAdmin(); renderSurveys(); renderUsers(); updateAdminDashboard(); renderConfig();
+    calls=cr.data||[]; advisors=ar.data||[]; surveys=er.data||[]; populateAdminFilters(); populateSurveyFilters(); renderAdmin(); renderSurveys(); renderUsers(); updateAdminDashboard(); renderConfig();
   }
 
   async function registerCall(e){
@@ -134,7 +134,7 @@
 
   function renderAdvisorTable(){const tabla=id("tabla-asesor"),filtro=value("filtroAsesor").toLowerCase(),filtered=calls.filter(c=>[c.cliente,c.llamada,c.zona,c.observaciones].join(" ").toLowerCase().includes(filtro));tabla.innerHTML=filtered.length?filtered.map(c=>`<tr><td>#${c.id}</td><td>${escapeHTML(c.cliente)}</td><td>${llamadaBadge(c.llamada)}</td><td>${escapeHTML(c.zona)}</td><td>${whatsappBadge(c)}</td><td>${compromisoCell(c)}</td><td>${pagoBadge(c.pago)}</td><td>${formatDate(c.fecha_llamada)}</td></tr>`).join(""):`<tr class="empty-row"><td colspan="8">${calls.length?"No se encontraron llamadas.":"No hay llamadas registradas."}</td></tr>`;updateAdvisorStats();}
   function updateAdvisorStats(){const total=calls.length,contestadas=calls.filter(c=>c.llamada==="Contestada").length,no=calls.filter(c=>c.llamada==="No contestada").length,pagos=calls.filter(c=>c.pago).length,compromisos=calls.filter(c=>c.compromiso_pago).length;id("asesor-total-count").textContent=total;id("asesor-contestadas-count").textContent=contestadas;id("asesor-nocontestadas-count").textContent=no;id("asesor-pagos-count").textContent=pagos;id("asesor-compromisos-count").textContent=compromisos;const meta=metaDe(currentProfile),pct=metaPct(total,meta);setText("asesor-meta-count",meta);setText("asesor-meta-pct",`${pct}%`);const bar=id("asesor-meta-bar");if(bar)bar.style.width=`${Math.min(100,pct)}%`;}
-  function metaDe(p){const n=Number(p?.meta_llamadas);return Number.isFinite(n)&&n>0?n:META_POR_DEFECTO;}
+  function metaDe(p){const n=Number(p?.meta_mensual ?? p?.meta_llamadas);return Number.isFinite(n)&&n>0?n:META_POR_DEFECTO;}
   function metaPct(hechas,meta){return meta>0?Math.round(hechas/meta*100):0;}
   function updateAdvisorDashboard(){updateAdvisorStats();}
 
@@ -156,37 +156,15 @@
 
   function renderUsers(){const tbody=id("tabla-usuarios");if(!tbody)return;tbody.innerHTML=advisors.map(a=>{const name=[a.nombre,a.apellido].filter(Boolean).join(" ")||"—";const meta=metaDe(a),hechas=calls.filter(c=>c.asesor_id===a.id).length,pct=metaPct(hechas,meta);return `<tr><td><strong>${escapeHTML(name)}</strong></td><td>${escapeHTML(a.email||"—")}</td><td>${meta}</td><td>${hechas}</td><td><div class="mini-progress"><span style="width:${Math.min(100,pct)}%"></span></div><small>${pct}%</small></td><td>${a.activo===false?'<span class="badge badge-disabled">Inhabilitado</span>':'<span class="badge badge-active">Activo</span>'}</td><td class="action-cell"><button class="btn-small" onclick="editAdvisor('${a.id}')">Editar</button><button class="btn-small" onclick="toggleAdvisor('${a.id}',${a.activo!==false})">${a.activo===false?"Habilitar":"Inhabilitar"}</button><button class="btn-delete" onclick="deleteAdvisor('${a.id}')">Eliminar</button></td></tr>`;}).join("")||'<tr class="empty-row"><td colspan="7">No hay asesores registrados.</td></tr>';}
 
-  function populateAdminSurveyCalls(){
-    const select=id("adminSurveyLlamada"); if(!select)return;
-    const current=select.value;
-    const sorted=[...calls].sort((a,b)=>(b.fecha_llamada||"").localeCompare(a.fecha_llamada||"") || Number(b.id)-Number(a.id));
-    select.innerHTML='<option value="">Seleccione la llamada relacionada...</option>'+sorted.map(c=>{
-      const a=c.perfilescr||{}, name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"Sin asesor";
-      return `<option value="${c.id}">#${c.id} · ${escapeHTML(c.fecha_llamada||"")} · ${escapeHTML(c.cliente||"Sin cliente")} · ${escapeHTML(name)}</option>`;
-    }).join("");
-    select.value=current;
-  }
-
   function resetAdminSurveyForm(){
     const form=id("admin-survey-form"); if(form)form.reset();
-    setText("admin-survey-selected-info","Seleccione una llamada para asociar la encuesta.");
-  }
-
-  function updateAdminSurveyCallInfo(){
-    const callId=value("adminSurveyLlamada"),c=calls.find(x=>String(x.id)===String(callId));
-    if(!c){setText("admin-survey-selected-info","Seleccione una llamada para asociar la encuesta.");return;}
-    const a=c.perfilescr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"Sin asesor";
-    setText("admin-survey-selected-info",`Llamada #${c.id} · Cliente: ${c.cliente||"—"} · Asesor: ${name} · Fecha: ${formatDate(c.fecha_llamada)}`);
   }
 
   async function saveAdminSurvey(e){
     e.preventDefault();
     if(!currentUser||currentProfile?.rol!=="administrador"){showToast("Solo el administrador puede diligenciar esta encuesta.",true);return;}
-    const llamadaId=value("adminSurveyLlamada");
-    const call=calls.find(x=>String(x.id)===String(llamadaId));
-    if(!call){showToast("Selecciona la llamada relacionada con la encuesta.",true);return;}
     const enc={
-      llamada_id:call.id,
+      llamada_id:null,
       asesor_id:currentUser.id,
       codigo_usuario:value("adminEncCodigoUsuario")||null,
       calificacion_servicio:value("adminEncServicio")||null,
@@ -199,14 +177,16 @@
       recomendaria:value("adminEncRecomendaria")||null,
       recomendacion_felicitacion:value("adminEncRecomendacion")||null
     };
+    if(!enc.codigo_usuario){showToast("Escribe el nombre del cliente o usuario encuestado.",true);return;}
     setButtonBusy(e.submitter,true,"Guardando...");
     const {data,error}=await sbClient.from("encuestascr").insert(enc).select(`*, perfilescr:asesor_id (id,nombre,apellido,email,rol,activo), llamadascr:llamada_id (id,cliente,llamada,zona,fecha_llamada,asesor_id,perfilescr:asesor_id (id,nombre,apellido,email))`).single();
-    setButtonBusy(e.submitter,false);
+    setButtonBusy(e.submitter,false,"Guardar encuesta");
     if(error){console.error(error);showToast(error.message||"No fue posible guardar la encuesta.",true);return;}
     surveys.unshift(data); populateSurveyFilters(); renderSurveys(); resetAdminSurveyForm(); showToast("Encuesta del administrador guardada correctamente.");
   }
 
-  async function saveAdminUser(e){e.preventDefault();const idUser=id("admin-user-id").value;const body={nombre:value("admin-user-nombre"),apellido:value("admin-user-apellido"),documento:value("admin-user-documento"),telefono:value("admin-user-telefono"),zona:"",email:value("admin-user-email"),meta_llamadas:Math.max(0,parseInt(id("admin-user-meta").value,10)||META_POR_DEFECTO)};if(!idUser){const password=id("admin-user-password").value;if(password.length<6){showToast("La contraseña debe tener mínimo 6 caracteres.",true);return;}const {data,error}=await fetchAdminFunction("create",{...body,password});if(error){showToast(error,true);return;}showToast("Asesor creado correctamente.");resetUserForm();await loadAdminData();return;}const result=await fetchAdminFunction("update",{user_id:idUser,...body});if(result.error){showToast(result.error,true);return;}showToast("Asesor actualizado.");resetUserForm();await loadAdminData();}
+
+  async function saveAdminUser(e){e.preventDefault();const idUser=id("admin-user-id").value;const body={nombre:value("admin-user-nombre"),apellido:value("admin-user-apellido"),documento:value("admin-user-documento"),telefono:value("admin-user-telefono"),zona:"",email:value("admin-user-email"),meta_mensual:Math.max(0,parseInt(id("admin-user-meta").value,10)||META_POR_DEFECTO)};if(!idUser){const password=id("admin-user-password").value;if(password.length<6){showToast("La contraseña debe tener mínimo 6 caracteres.",true);return;}const {data,error}=await fetchAdminFunction("create",{...body,password});if(error){showToast(error,true);return;}showToast("Asesor creado correctamente.");resetUserForm();await loadAdminData();return;}const result=await fetchAdminFunction("update",{user_id:idUser,...body});if(result.error){showToast(result.error,true);return;}showToast("Asesor actualizado.");resetUserForm();await loadAdminData();}
   async function fetchAdminFunction(action,payload){const {data:{session}}=await sbClient.auth.getSession();if(!session)return{error:"Sesión no disponible."};try{const r=await fetch(`${SUPABASE_URL}/functions/v1/admin-users-cr`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({action,...payload})});const j=await r.json().catch(()=>({}));return r.ok?{data:j}:{error:j.error||`Error ${r.status}`};}catch(e){return{error:"No se pudo contactar la función de administración. Debes desplegar supabase/functions/admin-users-cr."};}}
   function editAdvisor(uid){const a=advisors.find(x=>x.id===uid);if(!a)return;id("admin-user-id").value=a.id;["nombre","apellido","documento","telefono","email"].forEach(k=>id(`admin-user-${k}`).value=a[k]||"");id("admin-user-meta").value=metaDe(a);id("admin-user-password").value="";id("btn-save-user").textContent="Actualizar asesor";id("btn-cancel-user-edit").classList.remove("hidden");document.getElementById("vista-usuarios").scrollIntoView({behavior:"smooth"});}
   function resetUserForm(){id("admin-user-form").reset();id("admin-user-id").value="";id("admin-user-meta").value=META_POR_DEFECTO;id("btn-save-user").textContent="Crear asesor";id("btn-cancel-user-edit").classList.add("hidden");}

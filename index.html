@@ -147,12 +147,12 @@
     </section>
 
     <section id="vista-encuestas" class="view hidden">
-      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Reporte de encuestas</h2><p>Relaciona cada llamada con sus 7 respuestas para identificar oportunidades de mejora.</p></div></div>
+      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Reporte de encuestas</h2><p>Registra y consulta las encuestas de satisfacción realizadas por los asesores y por el administrador.</p></div></div>
       <div class="card form-card admin-survey-card">
-        <div class="card-heading"><div><span class="section-kicker">CONTROL DEL ADMINISTRADOR</span><h3>Diligenciar encuesta</h3><p class="muted">El administrador puede registrar una encuesta asociándola a una llamada existente. Los campos de la encuesta pueden quedar vacíos.</p></div></div>
+        <div class="card-heading"><div><span class="section-kicker">CONTROL DEL ADMINISTRADOR</span><h3>Diligenciar encuesta</h3><p class="muted">El administrador puede realizar una encuesta directamente al cliente o usuario, sin depender de una llamada registrada. Los campos de la encuesta pueden quedar vacíos.</p></div></div>
         <form id="admin-survey-form" class="encuesta-grid">
-          <div class="form-group encuesta-question-wide"><label for="adminSurveyLlamada">Llamada relacionada *</label><select id="adminSurveyLlamada" required><option value="">Seleccione la llamada relacionada...</option></select><small id="admin-survey-selected-info" class="survey-selected-info">Seleccione una llamada para asociar la encuesta.</small></div>
-          <div class="encuesta-question"><span class="question-number">01</span><div class="form-group"><label for="adminEncCodigoUsuario">Usuario encuestado — código y nombre completo</label><input id="adminEncCodigoUsuario" type="text"></div></div>
+          <div class="form-group encuesta-question-wide"><label for="adminEncCodigoUsuario">Cliente o usuario encuestado</label><input id="adminEncCodigoUsuario" type="text" placeholder="Nombre del cliente o usuario"><small class="survey-selected-info">Escriba directamente el nombre del cliente o usuario. No es necesario seleccionar una llamada.</small></div>
+          
           <div class="encuesta-question"><span class="question-number">02</span><div class="form-group"><label for="adminEncServicio">¿Cómo califica el servicio prestado?</label><select id="adminEncServicio"><option value="">Sin respuesta</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
           <div class="encuesta-question"><span class="question-number">03</span><div class="form-group"><label for="adminEncTecnica">¿Cómo califica la atención del área técnica?</label><select id="adminEncTecnica"><option value="">Sin respuesta</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
           <div class="encuesta-question"><span class="question-number">04</span><div class="form-group"><label for="adminEncAdministrativa">¿Cómo califica la atención del área administrativa?</label><select id="adminEncAdministrativa"><option value="">Sin respuesta</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
@@ -174,7 +174,7 @@
       </div>
       <div class="card table-card">
         <div class="card-heading table-heading"><div><span class="section-kicker">RESULTADOS</span><h3>Respuestas por asesor</h3></div><span id="survey-result-count" class="result-count">0 encuestas</span></div>
-        <div class="table-wrapper survey-table-wrapper"><table class="survey-admin-table"><thead><tr><th>Fecha</th><th>Asesor</th><th>Cliente</th><th>Zona</th><th>Llamada</th><th>01. Usuario encuestado</th><th>02. Servicio</th><th>03. Técnica</th><th>04. Administrativa</th><th>05. Averías</th><th>06. Recomendaría</th><th>07. Recomendación / felicitación</th><th>Obs. servicio</th><th>Obs. técnica</th><th>Obs. administrativa</th></tr></thead><tbody id="tabla-encuestas"></tbody></table></div>
+        <div class="table-wrapper survey-table-wrapper"><table class="survey-admin-table"><thead><tr><th>Fecha</th><th>Asesor</th><th>Cliente</th><th>Zona</th><th>Llamada</th><th>01. Cliente / usuario encuestado</th><th>02. Servicio</th><th>03. Técnica</th><th>04. Administrativa</th><th>05. Averías</th><th>06. Recomendaría</th><th>07. Recomendación / felicitación</th><th>Obs. servicio</th><th>Obs. técnica</th><th>Obs. administrativa</th></tr></thead><tbody id="tabla-encuestas"></tbody></table></div>
       </div>
     </section>
 
