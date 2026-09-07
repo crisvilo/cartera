@@ -132,7 +132,15 @@
       <div class="page-heading"><div><span class="eyebrow">LLAMADAS</span><h2>Gestión de cartera</h2><p>Consulta, filtra y descarga el detalle de las llamadas registradas.</p></div></div>
       <div class="card filters-card"><div class="card-heading"><div><span class="section-kicker">REPORTES</span><h3>Filtros de consulta</h3></div><div class="filter-actions"><button id="btn-clear-filters" class="btn-secondary" type="button">Limpiar filtros</button><button id="btn-preview-report" class="btn-secondary" type="button">👁 Vista previa</button><button id="btn-print-report" class="btn-primary" type="button">🖨 Imprimir</button><button id="btn-pdf-report" class="btn-primary" type="button">📄 Descargar PDF</button><button id="btn-excel-report" class="btn-secondary" type="button">📊 Descargar Excel</button></div></div><div class="filters-grid">
         <div class="form-group"><label for="filtroAdminTexto">Buscar</label><input id="filtroAdminTexto" type="search" placeholder="Cliente, zona, observaciones..."></div>
-        <div class="form-group"><label for="filtroAsesorAdmin">Asesor</label><select id="filtroAsesorAdmin"><option value="">Todos los asesores</option></select></div>
+        <div class="form-group"><label for="ms-asesores-toggle">Asesores <small class="muted">(elige varios para comparar)</small></label>
+          <div class="multiselect" id="ms-asesores">
+            <button type="button" class="multiselect-toggle" id="ms-asesores-toggle">Todos los asesores</button>
+            <div class="multiselect-panel hidden" id="ms-asesores-panel">
+              <div class="multiselect-actions"><button type="button" id="ms-asesores-all">Todos</button><button type="button" id="ms-asesores-none">Ninguno</button></div>
+              <div id="ms-asesores-list" class="multiselect-list"></div>
+            </div>
+          </div>
+        </div>
         <div class="form-group"><label for="filtroLlamadaAdmin">Llamada</label><select id="filtroLlamadaAdmin"><option value="">Todas</option><option value="Contestada">Contestadas</option><option value="No contestada">No contestadas</option><option value="Equivocada">Equivocadas</option></select></div>
         <div class="form-group"><label for="filtroCompromisoAdmin">Compromiso</label><select id="filtroCompromisoAdmin"><option value="">Todos</option><option value="true">Con compromiso</option><option value="false">Sin compromiso</option></select></div>
         <div class="form-group"><label for="filtroPagoAdmin">Pago</label><select id="filtroPagoAdmin"><option value="">Todos</option><option value="true">Pagó</option><option value="false">No pagó</option></select></div>
@@ -207,6 +215,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="js/app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

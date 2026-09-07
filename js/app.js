@@ -16,6 +16,7 @@
   const ZONAS = ["San Marcos", "Caucasia", "Montelíbano", "La Apartada", "Buenavista"];
   const META_POR_DEFECTO = 500;
   let currentUser = null, currentProfile = null, calls = [], advisors = [], surveys = [], config = { color_principal: "#0ea5e9", logo_url: "" };
+  let asesoresSeleccionados = []; // [] = todos los asesores
 
   document.addEventListener("DOMContentLoaded", async () => {
     bindEvents(); setTodayDefault(); showAuthView(); applyTheme();
@@ -37,7 +38,11 @@
     id("whatsappEnviado").addEventListener("change", toggleWhatsappFields);
     id("compromisoPago").addEventListener("change", toggleCompromisoField);
     id("incluirEncuesta").addEventListener("change", toggleEncuestaFields);
-    ["filtroAdminTexto","filtroAsesorAdmin","filtroLlamadaAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x => { id(x).addEventListener("input", renderAdmin); id(x).addEventListener("change", renderAdmin); });
+    ["filtroAdminTexto","filtroLlamadaAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x => { id(x).addEventListener("input", renderAdmin); id(x).addEventListener("change", renderAdmin); });
+    id("ms-asesores-toggle").addEventListener("click", (e) => { e.stopPropagation(); id("ms-asesores-panel").classList.toggle("hidden"); });
+    id("ms-asesores-all").addEventListener("click", () => { asesoresSeleccionados = []; syncAsesoresChecklist(); renderAdmin(); });
+    id("ms-asesores-none").addEventListener("click", () => { asesoresSeleccionados = advisors.map(a => a.id); syncAsesoresChecklist(); renderAdmin(); });
+    document.addEventListener("click", (e) => { const panel = id("ms-asesores-panel"), box = id("ms-asesores"); if (panel && !panel.classList.contains("hidden") && box && !box.contains(e.target)) panel.classList.add("hidden"); });
     id("btn-clear-filters").addEventListener("click", clearAdminFilters); id("btn-preview-report").addEventListener("click", () => previewReport()); id("btn-close-report-preview").addEventListener("click", closeReportPreview); id("btn-print-report").addEventListener("click", () => printReport()); id("btn-pdf-report").addEventListener("click", () => downloadPDF()); id("btn-excel-report").addEventListener("click", downloadExcel);
     id("btn-preview-advisor-summary").addEventListener("click", () => previewReport(buildAdvisorSummaryReportHTML)); id("btn-print-advisor-summary").addEventListener("click", () => printReport(buildAdvisorSummaryReportHTML)); id("btn-pdf-advisor-summary").addEventListener("click", () => downloadPDF(buildAdvisorSummaryReportHTML,"resumen-llamadas-por-asesor")); id("btn-excel-advisor-summary").addEventListener("click", downloadAdvisorSummaryExcel);
     id("admin-user-form").addEventListener("submit", saveAdminUser); id("admin-survey-form").addEventListener("submit", saveAdminSurvey); id("btn-cancel-user-edit").addEventListener("click", resetUserForm);
@@ -139,8 +144,26 @@
   function updateAdvisorDashboard(){updateAdvisorStats();}
 
   function renderAdmin(){const filtered=getFilteredAdminCalls();const summaryBody=id("tabla-admin");const detailBody=id("tabla-admin-detail");const by={};filtered.forEach(c=>{const a=c.perfilescr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"—";const k=c.asesor_id||name;if(!by[k])by[k]={name,total:0,contestadas:0,no:0,whatsapp:0,compromisos:0,pagos:0,zones:new Set()};const g=by[k];g.total++;if(c.llamada==="Contestada")g.contestadas++;if(c.llamada==="No contestada")g.no++;if(c.whatsapp_enviado)g.whatsapp++;if(c.compromiso_pago)g.compromisos++;if(c.pago)g.pagos++;if(c.zona)g.zones.add(c.zona);});const rows=Object.values(by).sort((a,b)=>b.total-a.total);if(summaryBody)summaryBody.innerHTML=rows.length?rows.map(g=>`<tr><td><strong>${escapeHTML(g.name)}</strong></td><td>${g.total}</td><td><span class="metric-pill metric-ok">${g.contestadas}</span></td><td><span class="metric-pill metric-no">${g.no}</span></td><td><span class="metric-pill metric-wa">${g.whatsapp}</span></td><td>${g.compromisos}</td><td>${g.pagos}</td><td>${escapeHTML([...g.zones].join(", ")||"—")}</td></tr>`).join(""):'<tr class="empty-row"><td colspan="8">No hay llamadas con los filtros seleccionados.</td></tr>';if(detailBody)detailBody.innerHTML=filtered.length?filtered.map(c=>{const a=c.perfilescr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||"—";return `<tr><td>#${c.id}</td><td>${escapeHTML(name)}</td><td>${escapeHTML(c.cliente)}</td><td>${llamadaBadge(c.llamada)}</td><td>${escapeHTML(c.zona)}</td><td>${whatsappBadge(c)}</td><td>${compromisoCell(c)}</td><td class="action-cell">${pagoBadge(c.pago)}<button class="btn-small" onclick="setPago(${c.id},${!c.pago})">${c.pago?"Quitar pago":"Marcar pago"}</button></td><td>${formatDate(c.fecha_llamada)}</td><td class="action-cell"><button class="btn-delete" onclick="deleteCall(${c.id})">Eliminar</button></td></tr>`;}).join(""):'<tr class="empty-row"><td colspan="10">No hay llamadas registradas.</td></tr>';setText("admin-result-count",`${filtered.length} llamada${filtered.length===1?"":"s"}`);renderSeguimientoAdmin();}
-   function getFilteredAdminCalls(){const text=value("filtroAdminTexto").toLowerCase(),asesor=id("filtroAsesorAdmin").value,llamada=id("filtroLlamadaAdmin").value,compromiso=id("filtroCompromisoAdmin").value,pago=id("filtroPagoAdmin").value,zona=id("filtroZonaAdmin").value,from=id("filtroDesdeAdmin").value,to=id("filtroHastaAdmin").value;return calls.filter(c=>{const a=c.perfilescr||{},search=[a.nombre,a.apellido,a.email,c.cliente,c.zona,c.observaciones,c.llamada].join(" ").toLowerCase();return(!text||search.includes(text))&&(!asesor||c.asesor_id===asesor)&&(!llamada||c.llamada===llamada)&&(!compromiso||String(c.compromiso_pago)===compromiso)&&(!pago||String(c.pago)===pago)&&(!zona||c.zona===zona)&&(!from||c.fecha_llamada>=from)&&(!to||c.fecha_llamada<=to);});}
-  function populateAdminFilters(){const as=id("filtroAsesorAdmin"),zone=id("filtroZonaAdmin"),aVal=as.value,zVal=zone.value;as.innerHTML='<option value="">Todos los asesores</option>'+advisors.map(a=>`<option value="${a.id}">${escapeHTML([a.nombre,a.apellido].filter(Boolean).join(" ")||a.email)}</option>`).join("");as.value=aVal;zone.innerHTML='<option value="">Todas las zonas</option>'+ZONAS.map(z=>`<option>${escapeHTML(z)}</option>`).join("");zone.value=zVal;}
+   function getFilteredAdminCalls(){const text=value("filtroAdminTexto").toLowerCase(),llamada=id("filtroLlamadaAdmin").value,compromiso=id("filtroCompromisoAdmin").value,pago=id("filtroPagoAdmin").value,zona=id("filtroZonaAdmin").value,from=id("filtroDesdeAdmin").value,to=id("filtroHastaAdmin").value;return calls.filter(c=>{const a=c.perfilescr||{},search=[a.nombre,a.apellido,a.email,c.cliente,c.zona,c.observaciones,c.llamada].join(" ").toLowerCase();return(!text||search.includes(text))&&(!asesoresSeleccionados.length||asesoresSeleccionados.includes(c.asesor_id))&&(!llamada||c.llamada===llamada)&&(!compromiso||String(c.compromiso_pago)===compromiso)&&(!pago||String(c.pago)===pago)&&(!zona||c.zona===zona)&&(!from||c.fecha_llamada>=from)&&(!to||c.fecha_llamada<=to);});}
+  function populateAdminFilters(){const zone=id("filtroZonaAdmin"),zVal=zone.value;zone.innerHTML='<option value="">Todas las zonas</option>'+ZONAS.map(z=>`<option>${escapeHTML(z)}</option>`).join("");zone.value=zVal;asesoresSeleccionados=asesoresSeleccionados.filter(id=>advisors.some(a=>a.id===id));syncAsesoresChecklist();}
+  function syncAsesoresChecklist(){
+    const list=id("ms-asesores-list"); if(!list)return;
+    list.innerHTML=advisors.map(a=>{const nombre=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email;const checked=asesoresSeleccionados.includes(a.id)?"checked":"";return `<label class="multiselect-option"><input type="checkbox" value="${a.id}" ${checked}> ${escapeHTML(nombre)}</label>`;}).join("")||'<p class="muted">No hay asesores registrados.</p>';
+    list.querySelectorAll('input[type="checkbox"]').forEach(chk=>chk.addEventListener("change",()=>{
+      const id_=chk.value;
+      if(chk.checked){if(!asesoresSeleccionados.includes(id_))asesoresSeleccionados.push(id_);}else{asesoresSeleccionados=asesoresSeleccionados.filter(x=>x!==id_);}
+      updateAsesoresToggleLabel();renderAdmin();
+    }));
+    updateAsesoresToggleLabel();
+  }
+  function updateAsesoresToggleLabel(){
+    const btn=id("ms-asesores-toggle"); if(!btn)return;
+    if(!asesoresSeleccionados.length){btn.textContent="Todos los asesores";return;}
+    if(asesoresSeleccionados.length===1){const a=advisors.find(x=>x.id===asesoresSeleccionados[0]);btn.textContent=a?([a.nombre,a.apellido].filter(Boolean).join(" ")||a.email):"1 asesor seleccionado";return;}
+    btn.textContent=`${asesoresSeleccionados.length} asesores seleccionados`;
+  }
+  function nombreAsesor(a){return [a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"Sin asesor";}
+  function asesoresComparadosTexto(){return asesoresSeleccionados.length?advisors.filter(a=>asesoresSeleccionados.includes(a.id)).map(nombreAsesor).join(", "):"Todos los asesores";}
 
   function updateAdminDashboard(){
     const total=calls.length,contestadas=calls.filter(c=>c.llamada==="Contestada").length,no=calls.filter(c=>c.llamada==="No contestada").length,compromisos=calls.filter(c=>c.compromiso_pago).length,pagos=calls.filter(c=>c.pago).length;
@@ -198,7 +221,7 @@
   function renderConfig(){id("config-color").value=config.color_principal||"#0ea5e9";id("logo-preview").innerHTML=config.logo_url?`<img src="${config.logo_url}" alt="Logo de empresa">`:'<span>LOGO</span>';}
   function applyTheme(){document.documentElement.style.setProperty("--purple-primary",config.color_principal||"#0ea5e9");}
 
-  function clearAdminFilters(){["filtroAdminTexto","filtroAsesorAdmin","filtroLlamadaAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x=>id(x).value="");renderAdmin();}
+  function clearAdminFilters(){["filtroAdminTexto","filtroLlamadaAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x=>id(x).value="");asesoresSeleccionados=[];syncAsesoresChecklist();renderAdmin();}
 
   function groupByClient(list){const map={};list.forEach(c=>{if(!map[c.cliente])map[c.cliente]={total:0,contestadas:0,nocontestadas:0,compromisos:0,pagos:0,asesores:new Set()};const g=map[c.cliente];g.total++;if(c.llamada==="Contestada")g.contestadas++;if(c.llamada==="No contestada")g.nocontestadas++;if(c.compromiso_pago)g.compromisos++;if(c.pago)g.pagos++;const a=c.perfilescr;if(a)g.asesores.add([a.nombre,a.apellido].filter(Boolean).join(" ")||a.email);});return map;}
   function renderSeguimientoAsesor(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`,monthly=calls.filter(c=>c.fecha_llamada?.startsWith(ym));const map=groupByClient(monthly);const rows=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);const tbody=id("tabla-seguimiento-asesor");if(!tbody)return;tbody.innerHTML=rows.length?rows.map(([cliente,g])=>`<tr><td>${escapeHTML(cliente)}</td><td>${g.total}</td><td>${g.contestadas}</td><td>${g.nocontestadas}</td><td>${g.compromisos}</td><td>${g.pagos}</td></tr>`).join(""):'<tr class="empty-row"><td colspan="6">No hay llamadas este mes.</td></tr>';}
@@ -234,11 +257,68 @@
     return Object.values(groups).sort((a,b)=>b.total-a.total);
   }
 
-  function buildReportHTML(){const filtered=getFilteredAdminCalls(),total=filtered.length,contestadas=filtered.filter(c=>c.llamada==="Contestada").length,no=filtered.filter(c=>c.llamada==="No contestada").length,equivocadas=filtered.filter(c=>c.llamada==="Equivocada").length,compromisos=filtered.filter(c=>c.compromiso_pago).length,pagos=filtered.filter(c=>c.pago).length,pct=n=>total?Math.round(n/total*100):0;
+  // ---------------------------------------------------------------
+  // Gráficos en SVG puro para PDF/impresión (html2canvas no renderiza
+  // bien conic-gradient de CSS; SVG sí se rasteriza de forma fiable).
+  // ---------------------------------------------------------------
+  function svgDonut(segments, centerLabel, centerSub) {
+    const total = segments.reduce((a, s) => a + s.value, 0) || 1;
+    const r = 42, cx = 55, cy = 55, circumference = 2 * Math.PI * r;
+    let offset = 0;
+    const arcs = segments.filter(s => s.value > 0).map(s => {
+      const frac = s.value / total, dash = frac * circumference, gap = circumference - dash;
+      const circle = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="15" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      offset += dash; return circle;
+    }).join("");
+    return `<svg viewBox="0 0 110 110" width="108" height="108">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eee8f7" stroke-width="15"/>
+      ${arcs}
+      <text x="${cx}" y="${cy - 1}" text-anchor="middle" font-family="Arial" font-size="15" font-weight="700" fill="#3c3157">${escapeHTML(centerLabel)}</text>
+      <text x="${cx}" y="${cy + 12}" text-anchor="middle" font-family="Arial" font-size="7" fill="#77717f">${escapeHTML(centerSub || "")}</text>
+    </svg>`;
+  }
+  function donutCardHTML(title, segments, centerLabel, centerSub) {
+    const legend = segments.map(s => `<span><i class="print-dot" style="background:${s.color}"></i>${escapeHTML(s.label)}<strong>${s.value}</strong></span>`).join("");
+    return `<div class="print-chart-card"><h2>${escapeHTML(title)}</h2><div class="print-chart-figure">${svgDonut(segments, centerLabel, centerSub)}<div class="print-legend">${legend}</div></div></div>`;
+  }
+  function svgBarCompare(items, width) {
+    const w = width || 520, leftW = 108, rightW = 34, barH = 15, gap = 8;
+    const max = Math.max(1, ...items.map(i => Math.max(i.value, i.value2 || 0)));
+    const chartW = w - leftW - rightW;
+    const rowH = (items[0] && items[0].value2 !== undefined) ? barH * 2 + 4 : barH;
+    const rows = items.map((it, i) => {
+      const y = i * (rowH + gap);
+      const w1 = Math.max(0, Math.round((it.value / max) * chartW));
+      let extra = "";
+      if (it.value2 !== undefined) {
+        const w2 = Math.max(0, Math.round((it.value2 / max) * chartW));
+        extra = `<rect x="${leftW}" y="${y + barH + 3}" width="${chartW}" height="${barH}" rx="4" fill="#efe9f8"/><rect x="${leftW}" y="${y + barH + 3}" width="${w2}" height="${barH}" rx="4" fill="#d7cdef"/><text x="${leftW + chartW + 6}" y="${y + barH + 3 + barH - 4}" font-family="Arial" font-size="8.5" font-weight="700" fill="#7659a9">${it.value2}</text>`;
+      }
+      return `<text x="0" y="${y + barH - 4}" font-family="Arial" font-size="8.5" fill="#3c3157">${escapeHTML(it.label)}</text>
+        <rect x="${leftW}" y="${y}" width="${chartW}" height="${barH}" rx="4" fill="#efe9f8"/>
+        <rect x="${leftW}" y="${y}" width="${w1}" height="${barH}" rx="4" fill="${it.color || "#8064b3"}"/>
+        <text x="${leftW + chartW + 6}" y="${y + barH - 4}" font-family="Arial" font-size="8.5" font-weight="700" fill="#3c3157">${it.value}</text>
+        ${extra}`;
+    }).join("");
+    const height = items.length ? items.length * (rowH + gap) - gap + 4 : 30;
+    return items.length ? `<svg viewBox="0 0 ${w} ${height}" width="100%" height="${height}">${rows}</svg>` : '<p class="print-empty-chart">No hay datos para comparar.</p>';
+  }
+  function finalGoalBannerHTML(metaTotal, done, pct) {
+    return `<div class="print-final-goal">
+      <div class="print-final-goal-title"><span>META FINAL DEL ADMINISTRADOR</span><strong>Meta mensual del equipo de cartera</strong></div>
+      <div class="print-final-goal-metric"><span>Realizadas</span><strong>${done}</strong></div>
+      <div class="print-final-goal-metric"><span>Meta</span><strong>${metaTotal}</strong></div>
+      <div class="print-final-goal-metric"><span>Cumplimiento</span><strong>${pct}%</strong></div>
+      <div class="print-final-goal-track"><i style="width:${Math.min(100, pct)}%"></i></div>
+    </div>`;
+  }
+
+  function buildReportHTML(){
+    const filtered=getFilteredAdminCalls(),total=filtered.length,contestadas=filtered.filter(c=>c.llamada==="Contestada").length,no=filtered.filter(c=>c.llamada==="No contestada").length,equivocadas=filtered.filter(c=>c.llamada==="Equivocada").length,compromisos=filtered.filter(c=>c.compromiso_pago).length,pagos=filtered.filter(c=>c.pago).length;
     const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`,monthlyCalls=calls.filter(c=>c.fecha_llamada?.startsWith(ym)),metaTotal=advisors.filter(a=>a.activo!==false).reduce((acc,a)=>acc+metaDe(a),0),monthlyPct=metaPct(monthlyCalls.length,metaTotal);
     const desde=value("filtroDesdeAdmin"),hasta=value("filtroHastaAdmin"),period=desde||hasta?`${desde?formatDate(desde):"Inicio"} – ${hasta?formatDate(hasta):"Actual"}`:"Todos los periodos";
-    const rows=advisorCallSummary(filtered).map(g=>`<tr><td><strong>${escapeHTML(g.name)}</strong></td><td>${g.total}</td><td>${g.contestadas}</td><td>${g.no}</td><td>${g.whatsapp}</td><td>${g.compromisos}</td><td>${g.pagos}</td><td>${escapeHTML([...g.zones].join(", ")||"—")}</td></tr>`).join("");
-    return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">REPORTE DE CARTERA</span><h1>Llamadas de cobro</h1><p>Periodo: <strong>${escapeHTML(period)}</strong></p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total llamadas</span><strong>${total}</strong></div><div class="print-summary-card"><span>Contestadas</span><strong>${contestadas}</strong></div><div class="print-summary-card"><span>Compromisos</span><strong>${compromisos}</strong></div><div class="print-summary-card"><span>Pagos</span><strong>${pagos}</strong></div><div class="print-summary-card"><span>Meta mensual administrador</span><strong>${metaTotal}</strong></div><div class="print-summary-card"><span>Cumplimiento mensual</span><strong>${monthlyCalls.length}/${metaTotal} · ${monthlyPct}%</strong></div></div><section class="print-charts"><div class="print-chart-card"><h2>Tipo de llamada</h2><div class="print-donut" style="--first:${pct(contestadas)*3.6}deg"><div class="print-donut-center"><strong>${total}</strong><span>total</span></div></div><div class="print-legend"><span>Contestada <strong>${pct(contestadas)}%</strong></span><span>No contestada <strong>${pct(no)}%</strong></span><span>Equivocada <strong>${pct(equivocadas)}%</strong></span></div></div><div class="print-chart-card"><h2>Compromisos y pagos</h2><div class="print-donut" style="--first:${pct(pagos)*3.6}deg"><div class="print-donut-center"><strong>${pct(pagos)}%</strong><span>pagaron</span></div></div><div class="print-legend"><span>Compromisos <strong>${pct(compromisos)}%</strong></span><span>Pagos <strong>${pct(pagos)}%</strong></span></div></div></section>${metasTablaHTML(filtered)}<section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">RESUMEN</span><h2>Llamadas por asesor</h2></div><strong>${total} resultado${total===1?"":"s"}</strong></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Total</th><th>Contestadas</th><th>No contestadas</th><th>WhatsApp</th><th>Compromisos</th><th>Pagos</th><th>Zonas gestionadas</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
+    const comparativo=advisorCallSummary(filtered).slice(0,8).map(g=>({label:g.name,value:g.total,color:"#8064b3"}));
+    return `<div class="print-report-sheet compact-pdf">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">REPORTE DE CARTERA</span><h1>Llamadas de cobro</h1><p>Periodo: <strong>${escapeHTML(period)}</strong> · Asesores: <strong>${escapeHTML(asesoresComparadosTexto())}</strong></p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total llamadas</span><strong>${total}</strong></div><div class="print-summary-card"><span>Contestadas</span><strong>${contestadas}</strong></div><div class="print-summary-card"><span>No contestadas</span><strong>${no}</strong></div><div class="print-summary-card"><span>Equivocadas</span><strong>${equivocadas}</strong></div><div class="print-summary-card"><span>Compromisos</span><strong>${compromisos}</strong></div><div class="print-summary-card"><span>Pagos</span><strong>${pagos}</strong></div></div><section class="print-charts">${donutCardHTML("Tipo de llamada",[{label:"Contestada",value:contestadas,color:"#2ecc71"},{label:"No contestada",value:no,color:"#e74c3c"},{label:"Equivocada",value:equivocadas,color:"#f1c40f"}],total,"total")}${donutCardHTML("Compromisos y pagos",[{label:"Pagos",value:pagos,color:"#2ecc71"},{label:"Compromisos",value:compromisos,color:"#8064b3"}],`${total?Math.round(pagos/total*100):0}%`,"pagaron")}<div class="print-chart-card"><h2>Comparativo por asesor</h2>${svgBarCompare(comparativo)}</div></section>${finalGoalBannerHTML(metaTotal,monthlyCalls.length,monthlyPct)}</div>`;
   }
   function previewReport(builder=buildReportHTML){const modal=id("report-preview-modal"),content=id("report-preview-content");if(!modal||!content){showToast("No se encontró el visor de reportes.",true);return;}try{content.innerHTML=builder();modal.classList.remove("hidden");modal.setAttribute("aria-hidden","false");document.body.classList.add("report-preview-open");}catch(e){console.error(e);showToast("No fue posible preparar la vista previa.",true);}}
   function closeReportPreview(){const modal=id("report-preview-modal");if(!modal)return;modal.classList.add("hidden");modal.setAttribute("aria-hidden","true");document.body.classList.remove("report-preview-open");}
@@ -249,9 +329,48 @@
     const filtered=getFilteredAdminCalls(), groups={};
     filtered.forEach(c=>{const a=c.perfilescr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"Sin asesor";const key=c.asesor_id||name;if(!groups[key])groups[key]={nombre:name,total:0,contestadas:0,nocontestadas:0,whatsapp:0,compromisos:0,pagos:0,zones:new Set()};const g=groups[key];g.total++;if(c.llamada==="Contestada")g.contestadas++;if(c.llamada==="No contestada")g.nocontestadas++;if(c.whatsapp_enviado)g.whatsapp++;if(c.compromiso_pago)g.compromisos++;if(c.pago)g.pagos++;if(c.zona)g.zones.add(c.zona);});
     const rows=Object.values(groups).map(g=>`<tr><td><strong>${escapeHTML(g.nombre)}</strong></td><td>${g.total}</td><td>${g.contestadas}</td><td>${g.nocontestadas}</td><td>${g.whatsapp}</td><td>${g.compromisos}</td><td>${g.pagos}</td><td>${escapeHTML([...g.zones].join(", ")||"—")}</td></tr>`).join("");
-    const total=filtered.length;return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">RESUMEN DE LLAMADAS</span><h1>Llamadas por asesor</h1><p>Periodo: <strong>${escapeHTML(value("filtroDesdeAdmin")||value("filtroHastaAdmin")?`${value("filtroDesdeAdmin")?formatDate(value("filtroDesdeAdmin")):"Inicio"} – ${value("filtroHastaAdmin")?formatDate(value("filtroHastaAdmin")):"Actual"}`:"Todos los periodos")}</strong></p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total llamadas</span><strong>${total}</strong></div><div class="print-summary-card"><span>Asesores</span><strong>${Object.keys(groups).length}</strong></div><div class="print-summary-card"><span>Contestadas</span><strong>${filtered.filter(c=>c.llamada==="Contestada").length}</strong></div><div class="print-summary-card"><span>No contestadas</span><strong>${filtered.filter(c=>c.llamada==="No contestada").length}</strong></div></div><section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE AGRUPADO</span><h2>Resumen de llamadas por asesor</h2></div><strong>${Object.keys(groups).length} asesor${Object.keys(groups).length===1?"":"es"}</strong></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Total</th><th>Contestadas</th><th>No contestadas</th><th>WhatsApp</th><th>Compromisos</th><th>Pagos</th><th>Zonas gestionadas</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="print-empty-row">No hay llamadas para los filtros seleccionados.</td></tr>'}</tbody></table></div></section></div>`;
+    const total=filtered.length;
+    const comparativo=Object.values(groups).sort((a,b)=>b.total-a.total).slice(0,8).map(g=>({label:g.nombre,value:g.total,color:"#8064b3"}));
+    return `<div class="print-report-sheet compact-pdf">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">RESUMEN DE LLAMADAS</span><h1>Comparativo por asesor</h1><p>Periodo: <strong>${escapeHTML(value("filtroDesdeAdmin")||value("filtroHastaAdmin")?`${value("filtroDesdeAdmin")?formatDate(value("filtroDesdeAdmin")):"Inicio"} – ${value("filtroHastaAdmin")?formatDate(value("filtroHastaAdmin")):"Actual"}`:"Todos los periodos")}</strong> · Asesores: <strong>${escapeHTML(asesoresComparadosTexto())}</strong></p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total llamadas</span><strong>${total}</strong></div><div class="print-summary-card"><span>Asesores comparados</span><strong>${Object.keys(groups).length}</strong></div><div class="print-summary-card"><span>Contestadas</span><strong>${filtered.filter(c=>c.llamada==="Contestada").length}</strong></div><div class="print-summary-card"><span>No contestadas</span><strong>${filtered.filter(c=>c.llamada==="No contestada").length}</strong></div></div><section class="print-charts" style="grid-template-columns:1fr"><div class="print-chart-card"><h2>Llamadas totales por asesor</h2>${svgBarCompare(comparativo,900)}</div></section><section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE AGRUPADO</span><h2>Resumen de llamadas por asesor</h2></div><strong>${Object.keys(groups).length} asesor${Object.keys(groups).length===1?"":"es"}</strong></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Total</th><th>Contestadas</th><th>No contestadas</th><th>WhatsApp</th><th>Compromisos</th><th>Pagos</th><th>Zonas gestionadas</th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="print-empty-row">No hay llamadas para los filtros seleccionados.</td></tr>'}</tbody></table></div></section></div>`;
   }
-  function downloadAdvisorSummaryExcel(){try{if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}const filtered=getFilteredAdminCalls(),groups={};filtered.forEach(c=>{const a=c.perfilescr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"Sin asesor";const key=c.asesor_id||name;if(!groups[key])groups[key]={Asesor:name,Total:0,Contestadas:0,"No contestadas":0,WhatsApp:0,Compromisos:0,Pagos:0,Zonas:new Set()};const g=groups[key];g.Total++;if(c.llamada==="Contestada")g.Contestadas++;if(c.llamada==="No contestada")g["No contestadas"]++;if(c.whatsapp_enviado)g.WhatsApp++;if(c.compromiso_pago)g.Compromisos++;if(c.pago)g.Pagos++;if(c.zona)g.Zonas.add(c.zona);});const rows=Object.values(groups).map(g=>({...g,Zonas:[...g.Zonas].join(", ")||"—"}));const ws=window.XLSX.utils.json_to_sheet(rows.length?rows:[{Asesor:"",Total:0,Contestadas:0,"No contestadas":0,WhatsApp:0,Compromisos:0,Pagos:0,Zonas:""}]);ws["!cols"]=[{wch:28},{wch:10},{wch:14},{wch:17},{wch:12},{wch:14},{wch:10},{wch:35}];const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,ws,"Llamadas por asesor");window.XLSX.writeFile(wb,`resumen-llamadas-por-asesor-${new Date().toISOString().slice(0,10)}.xlsx`);showToast("Resumen por asesor descargado en Excel.");}catch(e){console.error(e);showToast("No fue posible generar el Excel del resumen.",true);}}
+  function downloadAdvisorSummaryExcel(){
+    (async () => {
+    try{
+      if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}
+      const filtered=getFilteredAdminCalls(),groups={};
+      filtered.forEach(c=>{const a=c.perfilescr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"Sin asesor";const key=c.asesor_id||name;if(!groups[key])groups[key]={Asesor:name,Total:0,Contestadas:0,"No contestadas":0,WhatsApp:0,Compromisos:0,Pagos:0,Zonas:new Set()};const g=groups[key];g.Total++;if(c.llamada==="Contestada")g.Contestadas++;if(c.llamada==="No contestada")g["No contestadas"]++;if(c.whatsapp_enviado)g.WhatsApp++;if(c.compromiso_pago)g.Compromisos++;if(c.pago)g.Pagos++;if(c.zona)g.Zonas.add(c.zona);});
+      const grouped=Object.values(groups).map(g=>({...g,Zonas:[...g.Zonas].join(", ")||"—"}));
+      const wb=window.XLSX.utils.book_new();
+      const wsResumen=window.XLSX.utils.json_to_sheet(grouped.length?grouped:[{Asesor:"",Total:0,Contestadas:0,"No contestadas":0,WhatsApp:0,Compromisos:0,Pagos:0,Zonas:""}]);
+      wsResumen["!cols"]=[{wch:28},{wch:10},{wch:14},{wch:17},{wch:12},{wch:14},{wch:10},{wch:35}];
+      window.XLSX.utils.book_append_sheet(wb,wsResumen,"Resumen por asesor");
+      const wsGraficos=window.XLSX.utils.aoa_to_sheet([["Gráficos comparativos por asesor"]]); wsGraficos["!cols"]=[{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsGraficos,"Gráficos");
+      const detail=filtered.map(c=>{const a=c.perfilescr||{};return {"Asesor":[a.nombre,a.apellido].filter(Boolean).join(" ")||"—","Cliente":c.cliente,"Llamada":c.llamada,"Zona":c.zona||"—","WhatsApp":c.whatsapp_enviado?"Sí":"No","Compromiso":c.compromiso_pago?formatDate(c.fecha_compromiso):"—","Pago":c.pago?"Sí":"No","Fecha":c.fecha_llamada};});
+      const wsDetalle=window.XLSX.utils.json_to_sheet(detail.length?detail:[{"Asesor":"","Cliente":"","Llamada":"","Zona":"","WhatsApp":"","Compromiso":"","Pago":"","Fecha":""}]);
+      wsDetalle["!cols"]=[{wch:25},{wch:22},{wch:16},{wch:16},{wch:10},{wch:14},{wch:8},{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsDetalle,"Detalle");
+      const asesorCat=grouped.map(g=>g.Asesor), totalVals=grouped.map(g=>g.Total), contestadasVals=grouped.map(g=>g.Contestadas), pagosVals=grouped.map(g=>g.Pagos);
+      const filas=grouped.length, base=2; // fila 1 = encabezado en "Resumen por asesor"
+      const charts=grouped.length?[{
+        type:"bar", title:"Total de llamadas por asesor", sheetRef:"'Resumen por asesor'",
+        catCount:filas, cats:asesorCat, series:[
+          {name:"Total", valRange:`$B$${base}:$B$${base+filas-1}`, vals:totalVals, color:"8064b3"},
+          {name:"Contestadas", valRange:`$C$${base}:$C$${base+filas-1}`, vals:contestadasVals, color:"2ecc71"}
+        ], catRange:`$A$${base}:$A$${base+filas-1}`,
+        anchor:{fromCol:0,fromRow:2,toCol:8,toRow:22}
+      },{
+        type:"bar", title:"Pagos por asesor", sheetRef:"'Resumen por asesor'",
+        catCount:filas, cats:asesorCat, series:[
+          {name:"Pagos", valRange:`$G$${base}:$G$${base+filas-1}`, vals:pagosVals, color:"f1c40f"}
+        ], catRange:`$A$${base}:$A$${base+filas-1}`,
+        anchor:{fromCol:9,fromRow:2,toCol:16,toRow:22}
+      }]:[];
+      await saveWorkbookWithCharts(wb,2,charts,`resumen-llamadas-por-asesor-${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("Resumen por asesor descargado en Excel con gráficos.");
+    }catch(e){console.error(e);showToast("No fue posible generar el Excel del resumen.",true);}
+    })();
+  }
 
   function buildAdvisorReportHTML(){
     const list=calls,total=list.length,contestadas=list.filter(c=>c.llamada==="Contestada").length,no=list.filter(c=>c.llamada==="No contestada").length,equivocadas=list.filter(c=>c.llamada==="Equivocada").length,compromisos=list.filter(c=>c.compromiso_pago).length,pagos=list.filter(c=>c.pago).length,pct=n=>total?Math.round(n/total*100):0;
@@ -264,25 +383,165 @@
   function printAdvisorReport(){printReport(buildAdvisorReportHTML);}
   function downloadAdvisorPDF(){downloadPDF(buildAdvisorReportHTML,"mi-reporte-cartera");}
 
+  // =================================================================
+  // GRÁFICOS NATIVOS DE EXCEL (OOXML) — SheetJS solo escribe datos, así
+  // que los gráficos reales se inyectan manipulando el .xlsx (que es un
+  // zip) con JSZip: se agregan xl/charts/chartN.xml + xl/drawings/... y
+  // se referencian desde la hoja de "Gráficos". Así el gráfico queda
+  // embebido y editable en Excel, no como una imagen ni texto ASCII.
+  // =================================================================
+  function escapeXml(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+  function chartXmlPie({title,sheetRef,catRange,valRange,catCount,cats,vals,colors}){
+    const colorEls=colors.map((c,i)=>`<c:dPt><c:idx val="${i}"/><c:bubble3D val="0"/><c:spPr><a:solidFill><a:srgbClr val="${c}"/></a:solidFill></c:spPr></c:dPt>`).join("");
+    const catPts=cats.map((v,i)=>`<c:pt idx="${i}"><c:v>${escapeXml(v)}</c:v></c:pt>`).join("");
+    const valPts=vals.map((v,i)=>`<c:pt idx="${i}"><c:v>${v}</c:v></c:pt>`).join("");
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="es-CO" sz="1200" b="1"/><a:t>${escapeXml(title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>
+<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>
+<c:pieChart><c:varyColors val="1"/><c:ser><c:idx val="0"/><c:order val="0"/>
+${colorEls}
+<c:cat><c:strRef><c:f>${sheetRef}!${catRange}</c:f><c:strCache><c:ptCount val="${catCount}"/>${catPts}</c:strCache></c:strRef></c:cat>
+<c:val><c:numRef><c:f>${sheetRef}!${valRange}</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${catCount}"/>${valPts}</c:numCache></c:numRef></c:val>
+</c:ser><c:firstSliceAng val="0"/></c:pieChart></c:plotArea>
+<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/></c:chart></c:chartSpace>`;
+  }
+  function chartXmlBar({title,sheetRef,catRange,catCount,cats,series}){
+    const axId1=Math.floor(100000000+Math.random()*800000000), axId2=axId1+1;
+    const sers=series.map((s,i)=>{
+      const catPts=cats.map((v,j)=>`<c:pt idx="${j}"><c:v>${escapeXml(v)}</c:v></c:pt>`).join("");
+      const valPts=s.vals.map((v,j)=>`<c:pt idx="${j}"><c:v>${v}</c:v></c:pt>`).join("");
+      return `<c:ser><c:idx val="${i}"/><c:order val="${i}"/>
+        <c:tx><c:v>${escapeXml(s.name)}</c:v></c:tx>
+        <c:spPr><a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill></c:spPr>
+        <c:cat><c:strRef><c:f>${sheetRef}!${catRange}</c:f><c:strCache><c:ptCount val="${catCount}"/>${catPts}</c:strCache></c:strRef></c:cat>
+        <c:val><c:numRef><c:f>${sheetRef}!${s.valRange}</c:f><c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${catCount}"/>${valPts}</c:numCache></c:numRef></c:val>
+      </c:ser>`;
+    }).join("");
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="es-CO" sz="1200" b="1"/><a:t>${escapeXml(title)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>
+<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>
+<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>
+${sers}
+<c:axId val="${axId1}"/><c:axId val="${axId2}"/>
+</c:barChart>
+<c:catAx><c:axId val="${axId1}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:txPr><a:bodyPr rot="-2700000" vert="horz"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="es-CO"/></a:p></c:txPr><c:crossAx val="${axId2}"/></c:catAx>
+<c:valAx><c:axId val="${axId2}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:majorGridlines/><c:crossAx val="${axId1}"/></c:valAx>
+</c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/></c:chart></c:chartSpace>`;
+  }
+  function drawingXmlAnchors(anchors){
+    const frames=anchors.map(a=>`
+<xdr:twoCellAnchor>
+<xdr:from><xdr:col>${a.fromCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${a.fromRow}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+<xdr:to><xdr:col>${a.toCol}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${a.toRow}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+<xdr:graphicFrame macro="">
+<xdr:nvGraphicFramePr><xdr:cNvPr id="${a.id}" name="${a.name}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>
+<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>
+<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${a.chartRid}"/></a:graphicData></a:graphic>
+</xdr:graphicFrame>
+<xdr:clientData/>
+</xdr:twoCellAnchor>`).join("");
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${frames}
+</xdr:wsDr>`;
+  }
+  async function injectChartsIntoWorkbook(buf,sheetIndex,charts){
+    const zip=await window.JSZip.loadAsync(buf);
+    const sheetPath=`xl/worksheets/sheet${sheetIndex}.xml`;
+    let sheetXml=await zip.file(sheetPath).async("string");
+    const anchors=[];
+    charts.forEach((c,i)=>{
+      const n=i+1;
+      const xml=c.type==="pie"?chartXmlPie(c):chartXmlBar(c);
+      zip.file(`xl/charts/chart${n}.xml`,xml);
+      anchors.push({chartRid:`rId${n}`,fromCol:c.anchor.fromCol,fromRow:c.anchor.fromRow,toCol:c.anchor.toCol,toRow:c.anchor.toRow,id:100+n,name:`Chart${n}`});
+    });
+    zip.file("xl/drawings/drawing1.xml",drawingXmlAnchors(anchors));
+    zip.file("xl/drawings/_rels/drawing1.xml.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${charts.map((c,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${i+1}.xml"/>`).join("")}</Relationships>`);
+    zip.file(`xl/worksheets/_rels/sheet${sheetIndex}.xml.rels`,`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdDrawing1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/></Relationships>`);
+    if(!sheetXml.includes("<drawing ")) sheetXml=sheetXml.replace("</worksheet>",`<drawing r:id="rIdDrawing1"/></worksheet>`);
+    zip.file(sheetPath,sheetXml);
+    let ct=await zip.file("[Content_Types].xml").async("string");
+    let additions=`<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`;
+    charts.forEach((c,i)=>{additions+=`<Override PartName="/xl/charts/chart${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`;});
+    ct=ct.replace("</Types>",`${additions}</Types>`);
+    zip.file("[Content_Types].xml",ct);
+    return zip.generateAsync({type:"array"});
+  }
+  async function saveWorkbookWithCharts(wb,sheetIndexForCharts,charts,filename){
+    const buf=window.XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    let finalBuf=buf;
+    if(window.JSZip&&charts&&charts.length){
+      try{ finalBuf=await injectChartsIntoWorkbook(buf,sheetIndexForCharts,charts); }
+      catch(e){ console.error("No se pudieron insertar los gráficos nativos, se descarga el Excel sin gráficos:",e); finalBuf=buf; }
+    }
+    try{
+      const blob=new Blob([finalBuf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
+    }catch(e){
+      console.error("No fue posible iniciar la descarga, se usa el método alternativo:",e);
+      window.XLSX.writeFile(wb,filename);
+    }
+  }
+
   function downloadExcel(){
+    (async () => {
     try{
       if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}
       const filtered=getFilteredAdminCalls();
       const total=filtered.length,contestadas=filtered.filter(c=>c.llamada==="Contestada").length,no=filtered.filter(c=>c.llamada==="No contestada").length,equivocadas=filtered.filter(c=>c.llamada==="Equivocada").length,compromisos=filtered.filter(c=>c.compromiso_pago).length,pagos=filtered.filter(c=>c.pago).length,pct=n=>total?Math.round(n/total*100):0;
-      const detail=filtered.map(c=>{const a=c.perfilescr||{};return {"Asesor":[a.nombre,a.apellido].filter(Boolean).join(" ")||"—","Cliente":c.cliente,"Llamada":c.llamada,"Zona":c.zona||"—","WhatsApp":c.whatsapp_enviado?"Sí":"No","Compromiso":c.compromiso_pago?formatDate(c.fecha_compromiso):"—","Pago":c.pago?"Sí":"No","Fecha":c.fecha_llamada};});
-      const ws=window.XLSX.utils.json_to_sheet(detail.length?detail:[{"Asesor":"","Cliente":"","Llamada":"","Zona":"","WhatsApp":"","Compromiso":"","Pago":"","Fecha":""}]);
-      ws["!cols"]=[{wch:25},{wch:22},{wch:16},{wch:16},{wch:10},{wch:14},{wch:8},{wch:14}];
       const metas=metasResumen(filtered),metaTotal=metas.reduce((a,f)=>a+f.meta,0);
-      const summary=[
-        ["REPORTE DE CARTERA"],["Periodo",value("filtroDesdeAdmin")||value("filtroHastaAdmin")?`${value("filtroDesdeAdmin")?formatDate(value("filtroDesdeAdmin")):"Inicio"} – ${value("filtroHastaAdmin")?formatDate(value("filtroHastaAdmin")):"Actual"}`:"Todos los periodos"],[],
-        ["RESUMEN GENERAL"],["Indicador","Cantidad","Porcentaje"],["Total llamadas",total,"100%"],["Contestadas",contestadas,`${pct(contestadas)}%`],["No contestadas",no,`${pct(no)}%`],["Equivocadas",equivocadas,`${pct(equivocadas)}%`],["Compromisos de pago",compromisos,`${pct(compromisos)}%`],["Pagos",pagos,`${pct(pagos)}%`],["Meta total de llamadas",metaTotal,`${metaPct(total,metaTotal)}% cumplido`],[],
-        ["CUMPLIMIENTO DE METAS POR ASESOR"],["Asesor","Meta","Llamadas realizadas","Pendientes","% de cumplimiento"],...metas.map(f=>[f.nombre,f.meta,f.hechas,f.pendientes,`${f.pct}%`]),[],
-        ["GRÁFICO · TIPO DE LLAMADA"],["Categoría","Cantidad","%","Representación"],["Contestada",contestadas,pct(contestadas),"█".repeat(Math.max(0,Math.round(pct(contestadas)/5)))],["No contestada",no,pct(no),"█".repeat(Math.max(0,Math.round(pct(no)/5)))],["Equivocada",equivocadas,pct(equivocadas),"█".repeat(Math.max(0,Math.round(pct(equivocadas)/5)))]
-      ];
-      const wr=window.XLSX.utils.aoa_to_sheet(summary);wr["!cols"]=[{wch:34},{wch:15},{wch:20},{wch:15},{wch:20}];
-      const wb=window.XLSX.utils.book_new();window.XLSX.utils.book_append_sheet(wb,wr,"Resumen y gráficos");window.XLSX.utils.book_append_sheet(wb,ws,"Detalle");
-      window.XLSX.writeFile(wb,`reporte-cartera-${new Date().toISOString().slice(0,10)}.xlsx`);showToast("Excel descargado con resumen y gráficos.");
+      const period=value("filtroDesdeAdmin")||value("filtroHastaAdmin")?`${value("filtroDesdeAdmin")?formatDate(value("filtroDesdeAdmin")):"Inicio"} – ${value("filtroHastaAdmin")?formatDate(value("filtroHastaAdmin")):"Actual"}`:"Todos los periodos";
+
+      const summary=[];
+      summary.push(["REPORTE DE CARTERA"]); summary.push(["Periodo",period]); summary.push(["Asesores",asesoresComparadosTexto()]); summary.push([]);
+      summary.push(["RESUMEN GENERAL"]); summary.push(["Indicador","Cantidad","Porcentaje"]);
+      summary.push(["Total llamadas",total,"100%"]); summary.push(["Contestadas",contestadas,`${pct(contestadas)}%`]); summary.push(["No contestadas",no,`${pct(no)}%`]); summary.push(["Equivocadas",equivocadas,`${pct(equivocadas)}%`]); summary.push(["Compromisos de pago",compromisos,`${pct(compromisos)}%`]); summary.push(["Pagos",pagos,`${pct(pagos)}%`]); summary.push(["Meta total de llamadas",metaTotal,`${metaPct(total,metaTotal)}% cumplido`]); summary.push([]);
+      summary.push(["TIPO DE LLAMADA","Cantidad"]);
+      const tipoStart=summary.length+1;
+      summary.push(["Contestada",contestadas]); summary.push(["No contestada",no]); summary.push(["Equivocada",equivocadas]);
+      const tipoEnd=summary.length; summary.push([]);
+      summary.push(["CUMPLIMIENTO DE METAS POR ASESOR"]); summary.push(["Asesor","Meta","Llamadas realizadas","Pendientes","% de cumplimiento"]);
+      const metasStart=summary.length+1;
+      metas.forEach(f=>summary.push([f.nombre,f.meta,f.hechas,f.pendientes,`${f.pct}%`]));
+      const metasEnd=summary.length;
+
+      const wsResumen=window.XLSX.utils.aoa_to_sheet(summary); wsResumen["!cols"]=[{wch:34},{wch:16},{wch:20},{wch:15},{wch:20}];
+      const wb=window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb,wsResumen,"Resumen");
+      const wsGraficos=window.XLSX.utils.aoa_to_sheet([["Gráficos del reporte"]]); wsGraficos["!cols"]=[{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsGraficos,"Gráficos");
+      const detail=filtered.map(c=>{const a=c.perfilescr||{};return {"Asesor":[a.nombre,a.apellido].filter(Boolean).join(" ")||"—","Cliente":c.cliente,"Llamada":c.llamada,"Zona":c.zona||"—","WhatsApp":c.whatsapp_enviado?"Sí":"No","Compromiso":c.compromiso_pago?formatDate(c.fecha_compromiso):"—","Pago":c.pago?"Sí":"No","Fecha":c.fecha_llamada};});
+      const wsDetalle=window.XLSX.utils.json_to_sheet(detail.length?detail:[{"Asesor":"","Cliente":"","Llamada":"","Zona":"","WhatsApp":"","Compromiso":"","Pago":"","Fecha":""}]);
+      wsDetalle["!cols"]=[{wch:25},{wch:22},{wch:16},{wch:16},{wch:10},{wch:14},{wch:8},{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsDetalle,"Detalle");
+
+      const charts=[{
+        type:"pie", title:"Tipo de llamada", sheetRef:"Resumen",
+        catRange:`$A$${tipoStart}:$A$${tipoEnd}`, valRange:`$B$${tipoStart}:$B$${tipoEnd}`, catCount:tipoEnd-tipoStart+1,
+        cats:["Contestada","No contestada","Equivocada"], vals:[contestadas,no,equivocadas], colors:["2ecc71","e74c3c","f1c40f"],
+        anchor:{fromCol:0,fromRow:1,toCol:7,toRow:20}
+      }];
+      if(metas.length){
+        charts.push({
+          type:"bar", title:"Cumplimiento de metas por asesor", sheetRef:"Resumen",
+          catRange:`$A$${metasStart}:$A$${metasEnd}`, catCount:metasEnd-metasStart+1, cats:metas.map(f=>f.nombre),
+          series:[
+            {name:"Meta", valRange:`$B$${metasStart}:$B$${metasEnd}`, vals:metas.map(f=>f.meta), color:"d7cdef"},
+            {name:"Realizadas", valRange:`$C$${metasStart}:$C$${metasEnd}`, vals:metas.map(f=>f.hechas), color:"8064b3"}
+          ],
+          anchor:{fromCol:8,fromRow:1,toCol:17,toRow:20}
+        });
+      }
+      await saveWorkbookWithCharts(wb,2,charts,`reporte-cartera-${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("Excel descargado con gráficos nativos y detalle de llamadas.");
     }catch(e){console.error(e);showToast("No fue posible generar el Excel.",true);}
+    })();
   }
 
   function populateSurveyFilters(){
