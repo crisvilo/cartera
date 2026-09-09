@@ -70,7 +70,7 @@
       </div>
 
       <div class="card form-card" id="asesor-form-section">
-        <div class="card-heading"><div><span class="section-kicker">NUEVA LLAMADA</span><h3>Registrar llamada de cartera</h3></div><span id="asesor-zone-badge" class="zone-badge">Zona: —</span></div>
+        <div class="card-heading"><div><span class="section-kicker">NUEVA LLAMADA</span><h3>Registrar llamada de cartera</h3><p class="muted">¿Quieres registrar la encuesta de satisfacción de este cliente? Ve a <strong>Encuestas</strong> en el menú.</p></div><span id="asesor-zone-badge" class="zone-badge">Zona: —</span></div>
         <form id="call-form" class="sale-grid">
           <div class="form-group"><label for="cliente">Cliente <span>*</span></label><input type="text" id="cliente" required placeholder="Nombre o código de cliente"></div>
           <div class="form-group"><label for="tipoLlamada">Llamada <span>*</span></label><select id="tipoLlamada" required><option value="">Seleccione...</option><option value="Contestada">Contestada</option><option value="No contestada">No contestada</option><option value="Equivocada">Equivocada</option></select></div>
@@ -86,26 +86,6 @@
           <div class="form-group"><label for="pago">Pago</label><select id="pago"><option value="false">No</option><option value="true">Sí</option></select></div>
 
           <div class="form-group form-group-wide"><label for="observaciones">Observaciones</label><input type="text" id="observaciones" placeholder="Notas adicionales de la llamada"></div>
-
-          <div class="form-group form-group-wide"><label class="survey-switch"><input type="checkbox" id="incluirEncuesta"><span class="switch-ui" aria-hidden="true"></span><span><strong>Activar encuesta</strong><small>Diligenciar las 7 preguntas de satisfacción para esta llamada.</small></span></label></div>
-          <fieldset id="encuesta-fields" class="encuesta-fieldset hidden">
-            <legend>Encuesta de satisfacción <small>7 respuestas</small></legend>
-            <div class="encuesta-intro">Completa la información del usuario y las 6 preguntas de satisfacción. Las observaciones permiten ampliar la respuesta cuando sea necesario.</div>
-            <div class="encuesta-grid">
-              <div class="encuesta-question encuesta-question-wide"><span class="question-number">01</span><div class="form-group"><label for="encCodigoUsuario">Usuario encuestado — código y nombre completo</label><input type="text" id="encCodigoUsuario" placeholder="Código y nombre del usuario" required></div></div>
-              <div class="encuesta-question"><span class="question-number">02</span><div class="form-group"><label for="encServicio">¿Cómo califica el servicio prestado?</label><select id="encServicio"><option value="">Seleccione...</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
-              <div class="encuesta-question"><span class="question-number">03</span><div class="form-group"><label for="encTecnica">¿Cómo califica la atención del área técnica?</label><select id="encTecnica"><option value="">Seleccione...</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
-              <div class="encuesta-question"><span class="question-number">04</span><div class="form-group"><label for="encAdministrativa">¿Cómo califica la atención del área administrativa?</label><select id="encAdministrativa"><option value="">Seleccione...</option><option>EXCELENTE</option><option>BUENO</option><option>REGULAR</option><option>MALO</option><option>MUY MALO</option></select></div></div>
-              <div class="encuesta-question"><span class="question-number">05</span><div class="form-group"><label for="encAverias">¿Cómo califica la agilidad frente a daños o averías?</label><select id="encAverias"><option value="">Seleccione...</option><option>AGIL</option><option>DEMORADOS</option><option>MUY DEMORADOS</option><option>NI DEMORADOS NI AGIL</option></select></div></div>
-              <div class="encuesta-question"><span class="question-number">06</span><div class="form-group"><label for="encRecomendaria">¿Recomendaría nuestros servicios?</label><select id="encRecomendaria"><option value="">Seleccione...</option><option>SI</option><option>NO</option></select></div></div>
-              <div class="encuesta-question encuesta-question-wide"><span class="question-number">07</span><div class="form-group"><label for="encRecomendacion">¿Tiene alguna recomendación o felicitación?</label><textarea id="encRecomendacion" rows="3" placeholder="Escriba aquí la recomendación, comentario o felicitación"></textarea></div></div>
-              <div class="encuesta-observaciones">
-                <div class="form-group"><label for="encServicioObs">Observación adicional — servicio</label><textarea id="encServicioObs" rows="2"></textarea></div>
-                <div class="form-group"><label for="encTecnicaObs">Observación adicional — técnica</label><textarea id="encTecnicaObs" rows="2"></textarea></div>
-                <div class="form-group"><label for="encAdministrativaObs">Observación adicional — administrativa</label><textarea id="encAdministrativaObs" rows="2"></textarea></div>
-              </div>
-            </div>
-          </fieldset>
 
           <div class="form-actions form-actions-wide"><button type="reset" class="btn-secondary">Limpiar</button><button type="submit" class="btn-primary">Registrar llamada</button></div>
         </form>
@@ -191,7 +171,7 @@
       <div class="page-heading"><div><span class="eyebrow">ENCUESTA DE SATISFACCIÓN</span><h2>Encuesta de satisfacción</h2><p>Registra y consulta las encuestas de satisfacción realizadas por los asesores y por el administrador.</p></div><button type="button" class="btn-secondary btn-back-hub" data-hub-back>← Volver a Encuestas</button></div>
       <div class="survey-panel" data-panel="form">
       <div class="card form-card admin-survey-card">
-        <div class="card-heading"><div><span class="section-kicker">CONTROL DEL ADMINISTRADOR</span><h3>Diligenciar encuesta</h3><p class="muted">El administrador puede realizar una encuesta directamente al cliente o usuario, sin depender de una llamada registrada. Los campos de la encuesta pueden quedar vacíos.</p></div></div>
+        <div class="card-heading"><div><span class="section-kicker">ENCUESTA DIRECTA</span><h3>Diligenciar encuesta</h3><p class="muted">Registra la encuesta directamente para un cliente o usuario, sin depender de una llamada. Los campos de la encuesta pueden quedar vacíos.</p></div></div>
         <form id="admin-survey-form" class="encuesta-grid">
           <div class="form-group encuesta-question-wide"><label for="adminEncCodigoUsuario">Cliente o usuario encuestado</label><input id="adminEncCodigoUsuario" type="text" placeholder="Nombre del cliente o usuario"><small class="survey-selected-info">Escriba directamente el nombre del cliente o usuario. No es necesario seleccionar una llamada.</small></div>
           

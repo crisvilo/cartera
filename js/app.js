@@ -20,7 +20,7 @@
 
   document.addEventListener("DOMContentLoaded", async () => {
     bindEvents(); setTodayDefault(); showAuthView(); applyTheme();
-    toggleWhatsappFields(); toggleCompromisoField(); toggleEncuestaFields();
+    toggleWhatsappFields(); toggleCompromisoField();
     const { data: { session } } = await sbClient.auth.getSession();
     if (session?.user) await initializeSession(session.user);
     sbClient.auth.onAuthStateChange(async (event, session) => {
@@ -37,7 +37,6 @@
     id("filtroAsesor").addEventListener("input", renderAdvisorTable);
     id("whatsappEnviado").addEventListener("change", toggleWhatsappFields);
     id("compromisoPago").addEventListener("change", toggleCompromisoField);
-    id("incluirEncuesta").addEventListener("change", toggleEncuestaFields);
     ["filtroAdminTexto","filtroLlamadaAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x => { id(x).addEventListener("input", renderAdmin); id(x).addEventListener("change", renderAdmin); });
     id("ms-asesores-toggle").addEventListener("click", (e) => { e.stopPropagation(); id("ms-asesores-panel").classList.toggle("hidden"); });
     id("ms-asesores-all").addEventListener("click", () => { asesoresSeleccionados = []; syncAsesoresChecklist(); renderAdmin(); });
@@ -61,7 +60,6 @@
 
   function toggleWhatsappFields(){const on=id("whatsappEnviado").value==="true";id("whatsappMensajeGroup").classList.toggle("hidden",!on);id("whatsappRespuestaGroup").classList.toggle("hidden",!on);}
   function toggleCompromisoField(){const on=id("compromisoPago").value==="true";id("fechaCompromisoGroup").classList.toggle("hidden",!on);}
-  function toggleEncuestaFields(){const on=id("incluirEncuesta").checked;id("encuesta-fields").classList.toggle("hidden",!on);}
 
   async function login(e) { e.preventDefault(); const email=value("login-email"), password=id("login-password").value; setButtonBusy(e.submitter,true,"Ingresando..."); const {data,error}=await sbClient.auth.signInWithPassword({email,password}); setButtonBusy(e.submitter,false,"Ingresar"); if(error){showToast(authError(error),true);return;} await initializeSession(data.user); }
 
@@ -85,14 +83,15 @@
   async function loadConfig(){const {data}=await sbClient.from("configuracioncr").select("color_principal,logo_url").eq("id",1).maybeSingle(); if(data) config=data; applyTheme(); renderConfig();}
 
   async function loadAdvisorData(){
-    const [cr,sgr,srr]=await Promise.all([
+    const [cr,sr,sgr,srr]=await Promise.all([
       sbClient.from("llamadascr").select("*").eq("asesor_id",currentUser.id).order("fecha_llamada",{ascending:false}).order("id",{ascending:false}),
+      sbClient.from("encuestascr").select(`*, perfilescr:asesor_id (id,nombre,apellido,zona,email,activo)`).eq("asesor_id",currentUser.id).order("id",{ascending:false}),
       sbClient.from("encuestas_seguimientocr").select("*").eq("asesor_id",currentUser.id).order("id",{ascending:false}),
       sbClient.from("encuestas_serviciocr").select("*").eq("asesor_id",currentUser.id).order("id",{ascending:false})
     ]);
     if(cr.error){console.error(cr.error);showToast("No fue posible cargar tus llamadas.",true);return;}
-    calls=cr.data||[]; seguimientoSurveys=sgr.data||[]; servicioSurveys=srr.data||[];
-    applyAdvisorProfile();renderAdvisorTable();updateAdvisorDashboard();renderSeguimientoAsesor();renderSeguimientoSurveys();renderServicioSurveys();
+    calls=cr.data||[]; surveys=sr.data||[]; seguimientoSurveys=sgr.data||[]; servicioSurveys=srr.data||[];
+    applyAdvisorProfile();renderAdvisorTable();updateAdvisorDashboard();renderSeguimientoAsesor();renderSurveys();renderSeguimientoSurveys();renderServicioSurveys();
   }
 
   async function loadAdminData(){
@@ -115,25 +114,7 @@
     const zonaSeleccionada=value("zona"); if(!ZONAS.includes(zonaSeleccionada)){showToast("Selecciona una zona válida de la lista.",true);return;} const row={asesor_id:currentUser.id,cliente:value("cliente"),llamada:value("tipoLlamada"),zona:zonaSeleccionada,whatsapp_enviado:whatsapp,whatsapp_mensaje:whatsapp?(value("whatsappMensaje")||null):null,whatsapp_respuesta:whatsapp?(value("whatsappRespuesta")||null):null,compromiso_pago:compromiso,fecha_compromiso:compromiso?id("fechaCompromiso").value:null,pago:pago,observaciones:value("observaciones")||null,fecha_llamada:id("fechaLlamada").value};
     if(!row.cliente||!row.llamada||!row.zona||!row.fecha_llamada){showToast("Completa todos los campos obligatorios.",true);return;}
     const {data,error}=await sbClient.from("llamadascr").insert(row).select().single(); if(error){console.error(error);showToast(error.message||"No fue posible registrar la llamada.",true);return;}
-    if(id("incluirEncuesta").checked){
-      const enc={
-        llamada_id:data.id,
-        asesor_id:currentUser.id,
-        codigo_usuario:value("encCodigoUsuario")||null,
-        calificacion_servicio:value("encServicio")||null,
-        observacion_servicio:value("encServicioObs")||null,
-        calificacion_tecnica:value("encTecnica")||null,
-        observacion_tecnica:value("encTecnicaObs")||null,
-        calificacion_administrativa:value("encAdministrativa")||null,
-        observacion_administrativa:value("encAdministrativaObs")||null,
-        agilidad_averias:value("encAverias")||null,
-        recomendaria:value("encRecomendaria")||null,
-        recomendacion_felicitacion:value("encRecomendacion")||null
-      };
-      const {error:encError}=await sbClient.from("encuestascr").insert(enc);
-      if(encError){console.error(encError);showToast("La llamada se registró, pero la encuesta no se pudo guardar.",true);}
-    }
-    e.target.reset();applyAdvisorProfile();setTodayDefault();toggleWhatsappFields();toggleCompromisoField();toggleEncuestaFields();calls.unshift(data);renderAdvisorTable();updateAdvisorDashboard();renderSeguimientoAsesor();showToast("Llamada registrada correctamente.");
+    e.target.reset();applyAdvisorProfile();setTodayDefault();toggleWhatsappFields();toggleCompromisoField();calls.unshift(data);renderAdvisorTable();updateAdvisorDashboard();renderSeguimientoAsesor();showToast("Llamada registrada correctamente.");
   }
 
   async function setPago(callId,val){
@@ -145,7 +126,7 @@
   async function deleteCall(callId){if(!confirm("¿Eliminar definitivamente esta llamada? Esta acción no se puede deshacer."))return;const {error}=await sbClient.from("llamadascr").delete().eq("id",callId);if(error){showToast("No fue posible eliminar la llamada. Verifica las políticas RLS.",true);return;}calls=calls.filter(x=>x.id!==callId);renderAdmin();updateAdminDashboard();showToast("Llamada eliminada.");}
 
   function buildSidebar(){const nav=id("sidebar-nav");const admin=currentProfile?.rol==="administrador";const items=admin?[ ["admin-dashboard","▦","Dashboard"],["vista-admin","▤","Llamadas"],["vista-encuestas-hub","☑","Encuestas"],["vista-usuarios","＋","Registrar asesor","form"],["vista-usuarios","▤","Reporte asesores","report"],["vista-configuracion","⚙","Configuración"],["vista-respaldo","⭳","Respaldo"] ]:[["vista-asesor","▦","Mi dashboard"],["vista-asesor","＋","Registrar llamada"],["vista-asesor","▤","Mis llamadas"],["vista-encuestas-hub","☑","Encuestas"]];nav.innerHTML=items.map(([target,icon,label,mode])=>`<button class="nav-item" type="button" data-target="${target}" data-mode="${mode||''}" data-anchor="${target==='vista-asesor'?label:''}"><span>${icon}</span>${label}</button>`).join("");nav.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>{showView(b.dataset.target);if(b.dataset.mode)setSectionMode(b.dataset.target,b.dataset.mode);if(b.dataset.anchor==="Registrar llamada")id("asesor-form-section").scrollIntoView({behavior:"smooth"});if(b.dataset.anchor==="Mis llamadas")document.querySelector("#vista-asesor .table-card").scrollIntoView({behavior:"smooth"});closeSidebar();}));applyRoleVisibility();}
-  function applyRoleVisibility(){const admin=currentProfile?.rol==="administrador";document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!admin));const adminSurveyCard=document.querySelector(".admin-survey-card");if(adminSurveyCard)adminSurveyCard.classList.toggle("hidden",!admin);}
+  function applyRoleVisibility(){const admin=currentProfile?.rol==="administrador";document.querySelectorAll(".admin-only").forEach(el=>el.classList.toggle("hidden",!admin));}
   function closeSidebar(){id("sidebar").classList.remove("open");}
 
   function updateSessionHeader(){const name=[currentProfile?.nombre,currentProfile?.apellido].filter(Boolean).join(" ")||"Usuario", role=currentProfile?.rol==="administrador"?"Administrador":"Asesor";id("user-name").textContent=name;id("user-role").textContent=role;id("user-avatar").textContent=name.charAt(0).toUpperCase();id("sidebar-user-name").textContent=name;id("sidebar-user-role").textContent=role;id("session-area").classList.remove("hidden");id("btn-menu").classList.remove("hidden");id("sidebar").classList.remove("hidden");}
@@ -199,7 +180,7 @@
 
   async function saveAdminSurvey(e){
     e.preventDefault();
-    if(!currentUser||currentProfile?.rol!=="administrador"){showToast("Solo el administrador puede diligenciar esta encuesta.",true);return;}
+    if(!currentUser||!currentProfile){showToast("Tu sesión no está disponible.",true);return;}
     const enc={
       llamada_id:null,
       asesor_id:currentUser.id,
