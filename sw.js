@@ -12,7 +12,7 @@
  * cambió y seguirá usando la versión guardada en caché, aunque tú sí
  * hayas actualizado app.js o styles.css.
  */
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = `cartera-cache-${CACHE_VERSION}`;
 
 // Archivos propios de la app (mismo origen) que se guardan como respaldo
@@ -22,7 +22,8 @@ const APP_SHELL = [
   './',
   './index.html',
   './css/styles.css',
-  './js/app.js'
+  './js/app.js',
+  './img/favicon.png'
 ];
 
 self.addEventListener('install', (event) => {
