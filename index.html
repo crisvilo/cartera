@@ -99,7 +99,7 @@
     </section>
 
     <section id="admin-dashboard" class="view hidden">
-      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Dashboard general de cartera</h2><p>Visión global de llamadas, pagos y compromisos.</p></div></div>
+      <div class="page-heading"><div><span class="eyebrow">ADMINISTRACIÓN</span><h2>Dashboard general de cartera</h2><p>Visión global de llamadas, pagos y compromisos.</p></div><div class="page-heading-actions"><button id="btn-refresh-dashboard" class="btn-secondary" type="button">↻ Actualizar</button></div></div>
       <div class="stats-grid admin-stats">
         <div class="card stat-card"><div class="stat-icon">#</div><div><h3>Llamadas</h3><p id="dash-total">0</p></div></div>
         <div class="card stat-card"><div class="stat-icon">✓</div><div><h3>Contestadas</h3><p id="dash-contestadas">0</p></div></div>
@@ -277,7 +277,7 @@
       <div class="card form-card"><div class="card-heading"><div><span class="section-kicker">NUEVO ASESOR</span><h3>Crear asesor</h3></div></div><form id="admin-user-form" class="register-grid"><input type="hidden" id="admin-user-id"><div class="form-group"><label for="admin-user-nombre">Nombre *</label><input id="admin-user-nombre" required></div><div class="form-group"><label for="admin-user-apellido">Apellido *</label><input id="admin-user-apellido" required></div><div class="form-group"><label for="admin-user-documento">Documento</label><input id="admin-user-documento"></div><div class="form-group"><label for="admin-user-telefono">Teléfono</label><input id="admin-user-telefono"></div><div class="form-group"><label for="admin-user-meta">Meta de llamadas *</label><input id="admin-user-meta" type="number" min="0" step="1" value="500" required></div><div class="form-group"><label for="admin-user-email">Correo *</label><input id="admin-user-email" type="email" required></div><div class="form-group"><label for="admin-user-password">Contraseña</label><input id="admin-user-password" type="password" minlength="6" placeholder="Solo al crear"></div><div class="form-actions form-actions-wide"><button id="btn-cancel-user-edit" class="btn-secondary hidden" type="button">Cancelar edición</button><button id="btn-save-user" class="btn-primary" type="submit">Crear asesor</button></div></form></div>
       </div>
       <div class="survey-panel hidden" data-panel="report">
-      <div class="card table-card"><div class="card-heading"><div><span class="section-kicker">ASESORES</span><h3>Asesores registrados</h3></div></div><div class="table-wrapper"><table class="users-table"><thead><tr><th>Asesor</th><th>Correo</th><th>Meta</th><th>Llamadas</th><th>% Meta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tabla-usuarios"></tbody></table></div></div>
+      <div class="card table-card"><div class="card-heading table-heading"><div><span class="section-kicker">ASESORES</span><h3>Buscar asesor</h3><p class="muted">Escribe nombre, apellido, correo o documento para consultar un asesor.</p></div><div class="table-tools"><input id="buscar-asesor" type="search" placeholder="Buscar asesor..." autocomplete="off"><button id="btn-limpiar-busqueda-asesor" class="btn-secondary" type="button">Limpiar</button></div></div><div class="table-wrapper"><table class="users-table"><thead><tr><th>Asesor</th><th>Correo</th><th>Meta</th><th>Llamadas</th><th>% Meta</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tabla-usuarios"></tbody></table></div></div>
       </div>
     </section>
 

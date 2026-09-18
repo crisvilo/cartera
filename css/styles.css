@@ -595,3 +595,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .report-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end;margin-bottom:18px;padding:16px;border:1px solid var(--border,#dbe3ee);border-radius:14px;background:rgba(255,255,255,.45)}
 .report-filters .form-group{margin:0}.report-filters button{height:42px}
 .empty-state{text-align:center;padding:24px;color:#64748b}
+
+/* Acciones de encabezado para dashboard y búsqueda de asesores */
+.page-heading-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+@media (max-width:760px){.page-heading-actions{width:100%}.page-heading-actions .btn-secondary{width:100%}}
