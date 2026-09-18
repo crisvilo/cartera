@@ -213,7 +213,18 @@
   async function loadHistoricalSurveys(){
     const from=value("filtroEncuestaDesde"),to=value("filtroEncuestaHasta");
     const key=`surveys:history:${from||"all"}:${to||"all"}`;
-    reportSurveys=await cachedQuery(key,()=>{let q=sbClient.from("encuestascr").select(`*, perfilescr:asesor_id (id,nombre,apellido,email,rol,activo), llamadascr!inner:llamada_id (id,cliente,llamada,zona,fecha_llamada,asesor_id,perfilescr:asesor_id (id,nombre,apellido,email))`).order("id",{ascending:false});if(from)q=q.gte("llamadascr.fecha_llamada",from);if(to)q=q.lte("llamadascr.fecha_llamada",to);return q.then(r=>{if(r.error)throw r.error;return r.data||[];});});
+    const hasDateFilter=Boolean(from||to);
+    reportSurveys=await cachedQuery(key,()=>{
+      // Sin filtro de fecha se usa join normal para NO perder las encuestas
+      // directas (las que no están ligadas a una llamada, con llamada_id NULL).
+      // Con filtro de fecha sí se fuerza !inner, porque el filtro se aplica
+      // sobre un campo de la llamada relacionada.
+      const rel=hasDateFilter?"llamadascr:llamada_id!inner":"llamadascr:llamada_id";
+      let q=sbClient.from("encuestascr").select(`*, perfilescr:asesor_id (id,nombre,apellido,email,rol,activo), ${rel} (id,cliente,llamada,zona,fecha_llamada,asesor_id,perfilescr:asesor_id (id,nombre,apellido,email))`).order("id",{ascending:false});
+      if(from)q=q.gte("llamadascr.fecha_llamada",from);
+      if(to)q=q.lte("llamadascr.fecha_llamada",to);
+      return q.then(r=>{if(r.error)throw r.error;return r.data||[];});
+    });
     return reportSurveys;
   }
   async function applySurveyFilters(){
@@ -224,9 +235,15 @@
     renderSurveys();
   }
   async function prepareReportData(){
-    await loadHistoricalCalls();
-    await loadReportAdvisors();
-    await loadHistoricalSurveys();
+    // Cada carga va por separado: si una falla, las demás siguen y el reporte
+    // se genera igual con lo que haya. Antes, un solo error aquí dejaba sin
+    // efecto los botones de vista previa, imprimir, PDF y Excel, sin avisar.
+    const fallos=[];
+    try{ await loadHistoricalCalls(); }catch(e){ console.error("loadHistoricalCalls:",e); fallos.push("llamadas"); }
+    try{ await loadReportAdvisors(); }catch(e){ console.error("loadReportAdvisors:",e); fallos.push("asesores"); }
+    try{ await loadHistoricalSurveys(); }catch(e){ console.error("loadHistoricalSurveys:",e); fallos.push("encuestas"); }
+    if(fallos.length)showToast(`No fue posible cargar: ${fallos.join(", ")}. El reporte puede salir incompleto.`,true);
+    if(!Array.isArray(reportAdvisors))reportAdvisors=[];
   }
 
   async function registerCall(e){
@@ -354,7 +371,8 @@
     },350);
   }
   async function loadReportAdvisors(){
-    reportAdvisors=await cachedQuery("advisors:report",()=>sbClient.from("perfilescr").select("*").eq("rol","asesor").order("nombre",{ascending:true}).order("apellido",{ascending:true}).then(r=>{if(r.error)throw r.error;return r.data||[];}));
+    const res=await cachedQuery("advisors:report",()=>sbClient.from("perfilescr").select("*").eq("rol","asesor").order("nombre",{ascending:true}).order("apellido",{ascending:true}).then(r=>{if(r.error)throw r.error;return r.data||[];}));
+    reportAdvisors=Array.isArray(res)?res:[];
     return reportAdvisors;
   }
 
@@ -417,7 +435,8 @@
   function metasResumen(list){
     const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
     const monthly=(reportCalls||calls).filter(c=>c.fecha_llamada?.startsWith(ym));
-    return reportAdvisors.filter(a=>a.activo!==false).map(a=>{
+    const metaSource=(reportAdvisors&&reportAdvisors.length)?reportAdvisors:advisors;
+    return metaSource.filter(a=>a.activo!==false).map(a=>{
       const nombre=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"—",meta=metaDe(a),hechas=monthly.filter(c=>c.asesor_id===a.id).length;
       return {nombre,meta,hechas,pct:metaPct(hechas,meta),pendientes:Math.max(0,meta-hechas)};
     }).sort((x,y)=>y.pct-x.pct);
@@ -502,7 +521,7 @@
 
   function buildReportHTML(){
     const filtered=getFilteredAdminCalls(),total=filtered.length,contestadas=filtered.filter(c=>c.llamada==="Contestada").length,no=filtered.filter(c=>c.llamada==="No contestada").length,equivocadas=filtered.filter(c=>c.llamada==="Equivocada").length,compromisos=filtered.filter(c=>c.compromiso_pago).length,pagos=filtered.filter(c=>c.pago).length;
-    const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`,monthlyCalls=calls.filter(c=>c.fecha_llamada?.startsWith(ym)),metaTotal=reportAdvisors.filter(a=>a.activo!==false).reduce((acc,a)=>acc+metaDe(a),0),monthlyPct=metaPct(monthlyCalls.length,metaTotal);
+    const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`,monthlyCalls=calls.filter(c=>c.fecha_llamada?.startsWith(ym)),metaTotal=((reportAdvisors&&reportAdvisors.length)?reportAdvisors:advisors).filter(a=>a.activo!==false).reduce((acc,a)=>acc+metaDe(a),0),monthlyPct=metaPct(monthlyCalls.length,metaTotal);
     const desde=value("filtroDesdeAdmin"),hasta=value("filtroHastaAdmin"),period=desde||hasta?`${desde?formatDate(desde):"Inicio"} – ${hasta?formatDate(hasta):"Actual"}`:"Todos los periodos";
     const comparativo=advisorCallSummary(filtered).slice(0,8).map(g=>({label:g.name,value:g.total,color:"#8064b3"}));
     const gestionItems=TIPOS_GESTION.map(t=>({label:TIPOS_GESTION_CORTO[t]||t,value:filtered.filter(c=>c.tipo_gestion===t).length,color:"#0ea5e9"}));
