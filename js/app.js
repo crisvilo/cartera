@@ -96,7 +96,12 @@
     if (session?.user) await initializeSession(session.user);
     sbClient.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_OUT") { currentUser = null; currentProfile = null; calls = []; advisors = []; surveys = []; showAuthView(); return; }
-      if (session?.user && event !== "INITIAL_SESSION") await initializeSession(session.user);
+      // Al cambiar de pestaña y volver, Supabase dispara TOKEN_REFRESHED (y a veces SIGNED_IN otra vez)
+      // solo para revalidar la sesión. Si ya tenemos ese mismo usuario cargado, no se debe reinicializar
+      // la sesión ni recalcular la vista: eso es lo que causaba el salto a "inicio".
+      if (event === "INITIAL_SESSION") return;
+      if (session?.user && currentUser?.id !== session.user.id) { await initializeSession(session.user); return; }
+      if (session?.user) currentUser = session.user; // solo refrescamos el token en segundo plano
     });
   });
 
