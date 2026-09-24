@@ -16,7 +16,7 @@
   // Zonas predeterminadas del sistema de cartera.
   const ZONAS = ["San Marcos", "Caucasia", "Caucasia Subsidiada", "Montelíbano", "La Apartada", "Buenavista"];
   // Tipo de gestión realizada en la llamada.
-  const TIPOS_GESTION = ["Llamadas recibidas", "WhatsApp recibido", "Gestión reporte a Data Crédito y abogados", "Gestión lista de suspensión", "Gestión recuperación de equipo", "Gestión ofreciendo servicio de la empresa", "Gestión actualización de información"];
+  const TIPOS_GESTION = ["Llamadas recibidas", "WhatsApp recibido", "Gestión reporte a Data Crédito y abogados", "Gestión lista de suspensión", "Gestión recuperación de equipo", "Gestión ofreciendo servicio de la empresa", "Gestión actualización de información", "Gestión tipo de factura del mes"];
   const META_POR_DEFECTO = 500;
   let currentUser = null, currentProfile = null, calls = [], advisorFilteredCalls = null, advisors = [], reportAdvisors = [], surveys = [], seguimientoSurveys = [], servicioSurveys = [], config = { color_principal: "#0ea5e9", logo_url: "" };
   let advisorSearchTimer = null;
@@ -857,7 +857,7 @@ ${sers}
   function setSectionMode(viewId,mode){const view=id(viewId);if(!view)return;const panels=view.querySelectorAll(":scope > .survey-panel");if(!panels.length)return;panels.forEach(p=>p.classList.toggle("hidden",p.dataset.panel!==mode));}
   async function logout(){const {error}=await sbClient.auth.signOut();if(error)showToast("No fue posible cerrar la sesión.",true);}
   function llamadaBadge(t){if(!t)return '<span class="badge badge-disabled">Sin especificar</span>';if(t==="Contestada")return '<span class="badge badge-complete">Contestada</span>';if(t==="Equivocada")return '<span class="badge badge-cancelled">Equivocada</span>';if(t==="Llamadas recibidas")return '<span class="badge badge-active">Llamadas recibidas</span>';if(t==="WhatsApp recibido")return '<span class="badge badge-pending">WhatsApp recibido</span>';return '<span class="badge badge-pending">No contestada</span>';}
-  const TIPOS_GESTION_CORTO={"Llamadas recibidas":"Llamadas recibidas","WhatsApp recibido":"WhatsApp recibido","Gestión reporte a Data Crédito y abogados":"Reporte DataCrédito/abogados","Gestión lista de suspensión":"Lista de suspensión","Gestión recuperación de equipo":"Recuperación de equipo","Gestión ofreciendo servicio de la empresa":"Ofrecimiento de servicio","Gestión actualización de información":"Actualización de información"};
+  const TIPOS_GESTION_CORTO={"Llamadas recibidas":"Llamadas recibidas","WhatsApp recibido":"WhatsApp recibido","Gestión reporte a Data Crédito y abogados":"Reporte DataCrédito/abogados","Gestión lista de suspensión":"Lista de suspensión","Gestión recuperación de equipo":"Recuperación de equipo","Gestión ofreciendo servicio de la empresa":"Ofrecimiento de servicio","Gestión actualización de información":"Actualización de información","Gestión tipo de factura del mes":"Tipo de factura del mes"};
   function tipoGestionBadge(t){if(!t)return '<span class="badge badge-disabled">—</span>';return `<span class="badge badge-pending" title="${escapeHTML(t)}">${escapeHTML(TIPOS_GESTION_CORTO[t]||t)}</span>`;}
   function whatsappBadge(c){return c.whatsapp_enviado?'<span class="badge badge-active">Enviado</span>':'<span class="badge badge-disabled">No</span>';}
   function pagoBadge(v){return v?'<span class="badge badge-active">Sí</span>':'<span class="badge badge-disabled">No</span>';}
