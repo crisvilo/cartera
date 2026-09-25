@@ -35,26 +35,7 @@
           <div class="form-group"><label for="login-password">Contraseña <span>*</span></label><input id="login-password" type="password" autocomplete="current-password" required placeholder="••••••••"></div>
           <button class="btn-primary btn-full" type="submit">Ingresar</button>
         </form>
-        <div class="auth-divider"><span>¿Eres asesor?</span></div>
-        <button id="btn-show-register" class="btn-secondary btn-full" type="button">Crear cuenta de asesor</button>
-        <p class="auth-note">El administrador no se registra desde esta pantalla. Su cuenta se configura directamente en Supabase.</p>
-      </div>
-    </section>
-
-    <section id="register-view" class="auth-layout hidden">
-      <div class="auth-card card auth-card-wide">
-        <div class="auth-brand"><span class="auth-icon">+</span><div><span class="eyebrow">NUEVO ASESOR</span><h2>Registro de asesor de Cartera</h2></div></div>
-        <p class="auth-description">Registra tus datos como asesor de Cartera. Las zonas se seleccionan en cada llamada.</p>
-        <form id="register-form" class="register-grid">
-          <div class="form-group"><label for="reg-nombre">Nombre <span>*</span></label><input id="reg-nombre" type="text" required></div>
-          <div class="form-group"><label for="reg-apellido">Apellido <span>*</span></label><input id="reg-apellido" type="text" required></div>
-          <div class="form-group"><label for="reg-documento">Documento</label><input id="reg-documento" type="text"></div>
-          <div class="form-group"><label for="reg-telefono">Teléfono</label><input id="reg-telefono" type="tel"></div>
-          <div class="form-group"><label for="reg-email">Correo electrónico <span>*</span></label><input id="reg-email" type="email" required></div>
-          <div class="form-group"><label for="reg-password">Contraseña <span>*</span></label><input id="reg-password" type="password" minlength="6" required></div>
-          <div class="form-group"><label for="reg-password-confirm">Confirmar contraseña <span>*</span></label><input id="reg-password-confirm" type="password" minlength="6" required></div>
-          <div class="form-actions form-actions-wide"><button id="btn-back-login" type="button" class="btn-secondary">Volver al inicio</button><button type="submit" class="btn-primary">Registrar asesor</button></div>
-        </form>
+        <p class="auth-note">Las cuentas de asesor y administrador se crean directamente desde el panel de administración o en Supabase.</p>
       </div>
     </section>
 
