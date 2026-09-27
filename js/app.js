@@ -126,25 +126,26 @@
     id("compromisoPago").addEventListener("change", toggleCompromisoField);
     id("adminCallWhatsapp")?.addEventListener("change", toggleAdminWhatsappFields);
     id("adminCallCompromiso")?.addEventListener("change", toggleAdminCompromisoField);
-    ["filtroAdminTexto","filtroLlamadaAdmin","filtroTipoGestionAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin"].forEach(x => { id(x).addEventListener("input", renderAdmin); id(x).addEventListener("change", renderAdmin); });
+    ["filtroAdminTexto"].forEach(x => id(x).addEventListener("input", renderAdmin));
+    ["filtroLlamadaAdmin","filtroTipoGestionAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin"].forEach(x => id(x).addEventListener("change", applyAdminFilters));
     ["filtroDesdeAdmin","filtroHastaAdmin"].forEach(x => id(x).addEventListener("change", applyAdminFilters));
     id("ms-asesores-toggle").addEventListener("click", (e) => { e.stopPropagation(); id("ms-asesores-panel").classList.toggle("hidden"); });
-    id("ms-asesores-all").addEventListener("click", () => { const source=filterAdvisorsSource(); id("ms-asesores-list")?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=true); asesoresSeleccionados = source.map(a => a.id); updateAsesoresToggleLabel(); renderAdmin(); });
-    id("ms-asesores-none").addEventListener("click", () => { id("ms-asesores-list")?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=false); asesoresSeleccionados = []; updateAsesoresToggleLabel(); renderAdmin(); });
+    id("ms-asesores-all").addEventListener("click", async () => { const source=filterAdvisorsSource(); id("ms-asesores-list")?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=true); asesoresSeleccionados = source.map(a => a.id); updateAsesoresToggleLabel(); await applyAdminFilters(); });
+    id("ms-asesores-none").addEventListener("click", async () => { id("ms-asesores-list")?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=false); asesoresSeleccionados = []; updateAsesoresToggleLabel(); await applyAdminFilters(); });
     document.addEventListener("click", (e) => { const panel = id("ms-asesores-panel"), box = id("ms-asesores"); if (panel && !panel.classList.contains("hidden") && box && !box.contains(e.target)) panel.classList.add("hidden"); });
-    id("btn-clear-filters").addEventListener("click", clearAdminFilters); id("btn-preview-report").addEventListener("click", async () => {await prepareReportData();previewReport();reportCalls=null;reportSurveys=null;}); id("btn-close-report-preview").addEventListener("click", closeReportPreview); id("btn-print-report").addEventListener("click", async () => {await prepareReportData();printReport();reportCalls=null;reportSurveys=null;}); id("btn-pdf-report").addEventListener("click", async () => {await prepareReportData();downloadPDF();reportCalls=null;reportSurveys=null;}); id("btn-excel-report").addEventListener("click", async () => {await prepareReportData();downloadExcel();reportCalls=null;reportSurveys=null;});
-    id("btn-preview-advisor-summary").addEventListener("click", async () => {await prepareReportData();previewReport(buildAdvisorSummaryReportHTML);reportCalls=null;reportSurveys=null;}); id("btn-print-advisor-summary").addEventListener("click", async () => {await prepareReportData();printReport(buildAdvisorSummaryReportHTML);reportCalls=null;reportSurveys=null;}); id("btn-pdf-advisor-summary").addEventListener("click", async () => {await prepareReportData();downloadPDF(buildAdvisorSummaryReportHTML,"resumen-llamadas-por-asesor");reportCalls=null;reportSurveys=null;}); id("btn-excel-advisor-summary").addEventListener("click", async () => {await prepareReportData();downloadAdvisorSummaryExcel();reportCalls=null;reportSurveys=null;});
+    id("btn-clear-filters").addEventListener("click", clearAdminFilters); id("btn-preview-report").addEventListener("click", async () => {await prepareReportData("calls");previewReport();}); id("btn-close-report-preview").addEventListener("click", closeReportPreview); id("btn-print-report").addEventListener("click", async () => {await prepareReportData("calls");printReport();}); id("btn-pdf-report").addEventListener("click", async () => {await prepareReportData("calls");downloadPDF();}); id("btn-excel-report").addEventListener("click", async () => {await prepareReportData("calls");downloadExcel();});
+    id("btn-preview-advisor-summary").addEventListener("click", async () => {await prepareReportData("calls");previewReport(buildAdvisorSummaryReportHTML);}); id("btn-print-advisor-summary").addEventListener("click", async () => {await prepareReportData("calls");printReport(buildAdvisorSummaryReportHTML);}); id("btn-pdf-advisor-summary").addEventListener("click", async () => {await prepareReportData("calls");downloadPDF(buildAdvisorSummaryReportHTML,"resumen-llamadas-por-asesor");}); id("btn-excel-advisor-summary").addEventListener("click", async () => {await prepareReportData("calls");downloadAdvisorSummaryExcel();});
     id("admin-user-form").addEventListener("submit", saveAdminUser); id("admin-survey-form").addEventListener("submit", saveAdminSurvey); id("btn-cancel-user-edit").addEventListener("click", resetUserForm);
     id("adminEncOrigen")?.addEventListener("change", toggleSurveyCallMode); id("adminEncLlamada")?.addEventListener("change", applySelectedSurveyCall); id("adminEncLlamadaSearch")?.addEventListener("input",()=>{clearTimeout(surveyCallSearchTimer);surveyCallSearchTimer=setTimeout(()=>loadSurveyCalls(value("adminEncLlamadaSearch")),350);});
     ["filtroEncuestaTexto"].forEach(x => { if(id(x)) id(x).addEventListener("input", renderSurveys); });
     ["filtroEncuestaDesde","filtroEncuestaHasta"].forEach(x => { if(id(x)) id(x).addEventListener("change", applySurveyFilters); });
     id("btn-clear-survey-filters").addEventListener("click", clearSurveyFilters);
-    id("btn-preview-survey-report").addEventListener("click", async () => {await prepareReportData();previewReport(buildSurveyReportHTML);reportCalls=null;reportSurveys=null;});
-    id("btn-print-survey-report").addEventListener("click", async () => {await prepareReportData();printReport(buildSurveyReportHTML);reportCalls=null;reportSurveys=null;});
-    id("btn-pdf-survey-report").addEventListener("click", async () => {await prepareReportData();downloadPDF(buildSurveyReportHTML,"reporte-encuestas-cartera");reportCalls=null;reportSurveys=null;});
-    id("btn-excel-survey-report").addEventListener("click", async () => {await prepareReportData();downloadSurveyExcel();reportCalls=null;reportSurveys=null;});
+    id("btn-preview-survey-report").addEventListener("click", async () => {await prepareReportData("surveys");previewReport(buildSurveyReportHTML);});
+    id("btn-print-survey-report").addEventListener("click", async () => {await prepareReportData("surveys");printReport(buildSurveyReportHTML);});
+    id("btn-pdf-survey-report").addEventListener("click", async () => {await prepareReportData("surveys");downloadPDF(buildSurveyReportHTML,"reporte-encuestas-cartera");});
+    id("btn-excel-survey-report").addEventListener("click", async () => {await prepareReportData("surveys");downloadSurveyExcel();});
     id("config-form").addEventListener("submit", saveConfig); id("btn-remove-logo").addEventListener("click", removeLogo);
-    id("btn-asesor-report").addEventListener("click", async () => {await loadHistoricalCalls();previewAdvisorReport();reportCalls=null;}); id("btn-asesor-print").addEventListener("click", async () => {await loadHistoricalCalls();printAdvisorReport();reportCalls=null;}); id("btn-asesor-pdf").addEventListener("click", async () => {await loadHistoricalCalls();downloadAdvisorPDF();reportCalls=null;});
+    id("btn-asesor-report").addEventListener("click", async () => {await loadHistoricalAdvisorCalls();previewAdvisorReport();}); id("btn-asesor-print").addEventListener("click", async () => {await loadHistoricalAdvisorCalls();printAdvisorReport();}); id("btn-asesor-pdf").addEventListener("click", async () => {await loadHistoricalAdvisorCalls();downloadAdvisorPDF();});
     id("btn-download-backup").addEventListener("click", downloadBackup);
     document.querySelectorAll("[data-hub-open]").forEach(b=>b.addEventListener("click",()=>{showView(b.dataset.hubOpen);setSectionMode(b.dataset.hubOpen,b.dataset.hubMode||"form");}));
     document.querySelectorAll("[data-hub-back]").forEach(b=>b.addEventListener("click",()=>showView("vista-encuestas-hub")));
@@ -188,15 +189,32 @@
   async function refreshCarteraData(){cacheInvalidatePrefix("calls:");cacheInvalidatePrefix("surveys:");cacheInvalidatePrefix("seguimiento:");cacheInvalidatePrefix("servicio:");cacheInvalidatePrefix("dashboard:cartera:");cacheInvalidate("advisors:report");dashboardCartera=null;await loadAdminData(true);clearAdvisorSearch();showToast("Dashboard y datos recientes actualizados.");}
   async function loadHistoricalCalls(){
     const from=value("filtroDesdeAdmin"),to=value("filtroHastaAdmin");
-    const key=`calls:history:${from||"all"}:${to||"all"}`;
-    reportCalls=await cachedQuery(key,()=>{let q=sbClient.from("llamadascr").select(`*, perfilescr:asesor_id (id,nombre,apellido,zona,email,activo)`).order("fecha_llamada",{ascending:false}).order("id",{ascending:false});if(from)q=q.gte("fecha_llamada",from);if(to)q=q.lte("fecha_llamada",to);return q.then(r=>{if(r.error)throw r.error;return r.data||[];});});
+    const advisorIds=[...asesoresSeleccionados];
+    // Si no hay ningún asesor marcado en el filtro, el reporte debe quedar
+    // vacío (igual que en Encuestas) sin gastar una consulta a Supabase.
+    if(!advisorIds.length){reportCalls=[];return reportCalls;}
+    const llamada=value("filtroLlamadaAdmin"),tipoGestion=value("filtroTipoGestionAdmin"),compromiso=value("filtroCompromisoAdmin"),pago=value("filtroPagoAdmin"),zona=value("filtroZonaAdmin");
+    const key=`calls:history:${from||"all"}:${to||"all"}:${advisorIds.slice().sort().join(",")}:${llamada||"all"}:${tipoGestion||"all"}:${compromiso||"all"}:${pago||"all"}:${zona||"all"}`;
+    reportCalls=await cachedQuery(key,()=>{
+      const fields=`id,asesor_id,cliente,llamada,tipo_gestion,zona,whatsapp_enviado,compromiso_pago,fecha_compromiso,pago,observaciones,fecha_llamada,created_at,perfilescr:asesor_id (id,nombre,apellido,email,activo)`;
+      let q=sbClient.from("llamadascr").select(fields).order("fecha_llamada",{ascending:false}).order("id",{ascending:false});
+      if(from)q=q.gte("fecha_llamada",from);
+      if(to)q=q.lte("fecha_llamada",to);
+      if(advisorIds.length<filterAdvisorsSource().length)q=q.in("asesor_id",advisorIds);
+      if(llamada)q=llamada==="__SIN_ESPECIFICAR__"?q.is("llamada",null):q.eq("llamada",llamada);
+      if(tipoGestion)q=q.eq("tipo_gestion",tipoGestion);
+      if(compromiso)q=q.eq("compromiso_pago",compromiso==="true");
+      if(pago)q=q.eq("pago",pago==="true");
+      if(zona)q=q.eq("zona",zona);
+      return q.limit(3000).then(r=>{if(r.error)throw r.error;return r.data||[];});
+    });
     return reportCalls;
   }
   async function applyAdminFilters(){
-    const from=value("filtroDesdeAdmin"),to=value("filtroHastaAdmin");
-    if(from||to){
-      try{ await loadHistoricalCalls(); }catch(e){ console.error(e); showToast("No fue posible cargar las llamadas del periodo seleccionado.",true); return; }
-    }else{ reportCalls=null; }
+    // Asesor, fecha, llamada, tipo de gestión, compromiso, pago y zona ahora se
+    // filtran en Supabase (no solo en el navegador), así que cualquier cambio
+    // en estos filtros debe volver a consultar para no mostrar datos obsoletos.
+    try{ await loadHistoricalCalls(); }catch(e){ console.error(e); showToast("No fue posible cargar las llamadas con esos filtros.",true); return; }
     renderAdmin();
   }
   async function loadHistoricalAdvisorCalls(){
@@ -317,14 +335,15 @@
     }else{ reportSurveys=null; }
     renderSurveys();
   }
-  async function prepareReportData(){
+  async function prepareReportData(scope="all"){
     // Cada carga va por separado: si una falla, las demás siguen y el reporte
-    // se genera igual con lo que haya. Antes, un solo error aquí dejaba sin
-    // efecto los botones de vista previa, imprimir, PDF y Excel, sin avisar.
+    // se genera igual con lo que haya. Cada botón de reporte solo pide lo que
+    // ese reporte necesita (scope "calls" o "surveys"), y reutiliza reportCalls/
+    // reportSurveys si ya están cargados con los mismos filtros (cachedQuery).
     const fallos=[];
-    try{ await loadHistoricalCalls(); }catch(e){ console.error("loadHistoricalCalls:",e); fallos.push("llamadas"); }
-    try{ await loadReportAdvisors(); }catch(e){ console.error("loadReportAdvisors:",e); fallos.push("asesores"); }
-    try{ await loadHistoricalSurveys(); }catch(e){ console.error("loadHistoricalSurveys:",e); fallos.push("encuestas"); }
+    if(scope==="calls"||scope==="all"){ try{ await loadHistoricalCalls(); }catch(e){ console.error("loadHistoricalCalls:",e); fallos.push("llamadas"); } }
+    if(scope==="surveys"||scope==="all"){ try{ await loadHistoricalSurveys(); }catch(e){ console.error("loadHistoricalSurveys:",e); fallos.push("encuestas"); } }
+    try{ if(!reportAdvisors.length) await loadReportAdvisors(); }catch(e){ console.error("loadReportAdvisors:",e); fallos.push("asesores"); }
     if(fallos.length)showToast(`No fue posible cargar: ${fallos.join(", ")}. El reporte puede salir incompleto.`,true);
     if(!Array.isArray(reportAdvisors))reportAdvisors=[];
   }
@@ -402,10 +421,10 @@
     const previous=new Set([...list.querySelectorAll('input:checked')].map(x=>x.value));
     list.innerHTML=advisorSource.map(a=>{const esAdmin=a.rol==="administrador";const nombre=(([a.nombre,a.apellido].filter(Boolean).join(" ")||a.email))+(esAdmin?" (Administrador)":"");const isChecked=previous.size?previous.has(a.id):true;return `<label class="multiselect-option"><input type="checkbox" value="${a.id}" ${isChecked?"checked":""}> ${escapeHTML(nombre)}</label>`;}).join("")||'<p class="muted">No hay asesores registrados.</p>';
     asesoresSeleccionados=[...list.querySelectorAll('input:checked')].map(x=>x.value);
-    list.querySelectorAll('input[type="checkbox"]').forEach(chk=>chk.addEventListener("change",()=>{
+    list.querySelectorAll('input[type="checkbox"]').forEach(chk=>chk.addEventListener("change",async()=>{
       const id_=chk.value;
       if(chk.checked){if(!asesoresSeleccionados.includes(id_))asesoresSeleccionados.push(id_);}else{asesoresSeleccionados=asesoresSeleccionados.filter(x=>x!==id_);}
-      updateAsesoresToggleLabel();renderAdmin();
+      updateAsesoresToggleLabel();await applyAdminFilters();
     }));
     updateAsesoresToggleLabel();
   }
@@ -458,7 +477,10 @@
     },350);
   }
   async function loadReportAdvisors(){
-    const res=await cachedQuery("advisors:report",()=>sbClient.from("perfilescr").select("*").eq("rol","asesor").order("nombre",{ascending:true}).order("apellido",{ascending:true}).then(r=>{if(r.error)throw r.error;return r.data||[];}));
+    // Columnas reducidas (antes select("*")). Se mantienen documento y teléfono
+    // porque editAdvisor() los usa para precargar el formulario de edición:
+    // si faltaran, se guardarían vacíos y se borrarían esos datos al editar.
+    const res=await cachedQuery("advisors:report",()=>sbClient.from("perfilescr").select("id,nombre,apellido,documento,telefono,email,zona,activo,rol,meta_mensual,meta_llamadas").eq("rol","asesor").order("nombre",{ascending:true}).order("apellido",{ascending:true}).then(r=>{if(r.error)throw r.error;return r.data||[];}));
     reportAdvisors=Array.isArray(res)?res:[];
     return reportAdvisors;
   }
@@ -550,18 +572,21 @@
   function renderConfig(){id("config-color").value=config.color_principal||"#0ea5e9";id("logo-preview").innerHTML=config.logo_url?`<img src="${config.logo_url}" alt="Logo de empresa">`:'<span>LOGO</span>';}
   function applyTheme(){document.documentElement.style.setProperty("--purple-primary",config.color_principal||"#0ea5e9");}
 
-  function clearAdminFilters(){reportCalls=null;["filtroAdminTexto","filtroLlamadaAdmin","filtroTipoGestionAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x=>id(x).value="");id("ms-asesores-list")?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=true);asesoresSeleccionados=filterAdvisorsSource().map(a=>a.id);updateAsesoresToggleLabel();renderAdmin();}
+  async function clearAdminFilters(){["filtroAdminTexto","filtroLlamadaAdmin","filtroTipoGestionAdmin","filtroCompromisoAdmin","filtroPagoAdmin","filtroZonaAdmin","filtroDesdeAdmin","filtroHastaAdmin"].forEach(x=>id(x).value="");id("ms-asesores-list")?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=true);asesoresSeleccionados=filterAdvisorsSource().map(a=>a.id);updateAsesoresToggleLabel();await applyAdminFilters();}
 
   function groupByClient(list){const map={};list.forEach(c=>{if(!map[c.cliente])map[c.cliente]={total:0,contestadas:0,nocontestadas:0,compromisos:0,pagos:0,asesores:new Set()};const g=map[c.cliente];g.total++;if(c.llamada==="Contestada")g.contestadas++;if(c.llamada==="No contestada")g.nocontestadas++;if(c.compromiso_pago)g.compromisos++;if(c.pago)g.pagos++;const a=c.perfilescr;if(a)g.asesores.add([a.nombre,a.apellido].filter(Boolean).join(" ")||a.email);});return map;}
   function renderSeguimientoAsesor(){const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`,monthly=calls.filter(c=>c.fecha_llamada?.startsWith(ym));const map=groupByClient(monthly);const rows=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);const tbody=id("tabla-seguimiento-asesor");if(!tbody)return;tbody.innerHTML=rows.length?rows.map(([cliente,g])=>`<tr><td>${escapeHTML(cliente)}</td><td>${g.total}</td><td>${g.contestadas}</td><td>${g.nocontestadas}</td><td>${g.compromisos}</td><td>${g.pagos}</td></tr>`).join(""):'<tr class="empty-row"><td colspan="6">No hay llamadas este mes.</td></tr>';}
   function renderSeguimientoAdmin(){const filtered=getFilteredAdminCalls();const map=groupByClient(filtered);const rows=Object.entries(map).sort((a,b)=>b[1].total-a[1].total);const tbody=id("tabla-seguimiento-admin");if(!tbody)return;tbody.innerHTML=rows.length?rows.map(([cliente,g])=>`<tr><td>${escapeHTML(cliente)}</td><td>${g.total}</td><td>${g.contestadas}</td><td>${g.nocontestadas}</td><td>${g.compromisos}</td><td>${g.pagos}</td><td>${escapeHTML([...g.asesores].join(", ")||"—")}</td></tr>`).join(""):'<tr class="empty-row"><td colspan="7">No hay llamadas con los filtros seleccionados.</td></tr>';}
 
   function metasResumen(list){
-    const now=new Date(),ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
-    const monthly=(reportCalls||calls).filter(c=>c.fecha_llamada?.startsWith(ym));
+    // OJO: usar reportCalls/calls aquí sería incorrecto — reportCalls puede venir
+    // acotado por zona/asesor/tipo de gestión (ver loadHistoricalCalls), y el
+    // cumplimiento de meta es siempre del mes completo. Se usa dashboardCartera
+    // (RPC mensual, ya cargado y cacheado aparte) igual que en renderUsers().
     const metaSource=(reportAdvisors&&reportAdvisors.length)?reportAdvisors:advisors;
     return metaSource.filter(a=>a.activo!==false).map(a=>{
-      const nombre=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"—",meta=metaDe(a),hechas=monthly.filter(c=>c.asesor_id===a.id).length;
+      const nombre=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"—",meta=metaDe(a);
+      const da=Array.isArray(dashboardCartera?.asesores)?dashboardCartera.asesores.find(x=>x.id===a.id):null,hechas=Number(da?.realizadas)||0;
       return {nombre,meta,hechas,pct:metaPct(hechas,meta),pendientes:Math.max(0,meta-hechas)};
     }).sort((x,y)=>y.pct-x.pct);
   }
@@ -1031,7 +1056,17 @@ ${sers}
     return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">ENCUESTA DE SERVICIO</span><h1>Reporte de retiros de servicio</h1><p>${rows.length} registro${rows.length===1?"":"s"}</p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total retiros</span><strong>${rows.length}</strong></div><div class="print-summary-card"><span>Interesados en retomar</span><strong>${rows.filter(x=>x.interes_retomar==="SI").length}</strong></div><div class="print-summary-card"><span>No interesados</span><strong>${rows.filter(x=>x.interes_retomar==="NO").length}</strong></div></div><section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE</span><h2>Encuestas de servicio</h2></div></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Usuario</th><th>Zona</th><th>Servicio</th><th>Motivo retiro</th><th>Retomaría</th><th>Observaciones</th><th>Fecha</th></tr></thead><tbody>${trs||'<tr><td colspan="7" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
   }
 
-  document.addEventListener("DOMContentLoaded",()=>{populateSurveyAdvisorSelects();["seg-filter-from","seg-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();}));["seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>id(k)?.addEventListener("input",renderSeguimientoSurveys));id("seg-filter-clear")?.addEventListener("click",async()=>{clearSegFilters();await loadHistoricalSeguimiento();renderSeguimientoSurveys();});["srv-filter-from","srv-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalServicio();renderServicioSurveys();}));["srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>id(k)?.addEventListener("input",renderServicioSurveys));id("srv-filter-clear")?.addEventListener("click",async()=>{clearSrvFilters();await loadHistoricalServicio();renderServicioSurveys();});
+  function setReportDefaultDates(){
+    // Los reportes arrancan en el mes actual (lo habitual para ver avance),
+    // sin pisar una fecha que el usuario ya haya escrito.
+    const fromIds=["filtroDesdeAdmin","filtroEncuestaDesde","seg-filter-from","srv-filter-from"];
+    const toIds=["filtroHastaAdmin","filtroEncuestaHasta","seg-filter-to","srv-filter-to"];
+    const start=monthStartISO(),end=monthEndISO();
+    fromIds.forEach(k=>{const el=id(k);if(el&&!el.value)el.value=start;});
+    toIds.forEach(k=>{const el=id(k);if(el&&!el.value)el.value=end;});
+  }
+
+  document.addEventListener("DOMContentLoaded",()=>{populateSurveyAdvisorSelects();setReportDefaultDates();["seg-filter-from","seg-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();}));["seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>id(k)?.addEventListener("input",renderSeguimientoSurveys));id("seg-filter-clear")?.addEventListener("click",async()=>{clearSegFilters();await loadHistoricalSeguimiento();renderSeguimientoSurveys();});["srv-filter-from","srv-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalServicio();renderServicioSurveys();}));["srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>id(k)?.addEventListener("input",renderServicioSurveys));id("srv-filter-clear")?.addEventListener("click",async()=>{clearSrvFilters();await loadHistoricalServicio();renderServicioSurveys();});
     id("btn-seg-excel")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();downloadSimpleCSV("seguimiento",getFilteredSeguimiento());});
     id("btn-srv-excel")?.addEventListener("click",async()=>{await loadHistoricalServicio();downloadSimpleCSV("servicio",getFilteredServicio());});
     id("btn-seg-preview")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();previewReport(buildSeguimientoReportHTML);});
