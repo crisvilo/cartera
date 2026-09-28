@@ -558,7 +558,19 @@
   async function saveServicioSurvey(e){e.preventDefault();const row={usuario:value("srvUsuario"),zona:value("srvZona")||null,servicio_retirado:value("srvServicio"),motivo_retiro:value("srvMotivo")||null,interes_retomar:value("srvRetomar"),observaciones:value("srvObservaciones")||null,asesor_id:currentUser.id};const {data,error}=await sbClient.from("encuestas_serviciocr").insert(row).select().single();if(error){showToast(error.message,true);return;}servicioSurveys.unshift(data);cacheInvalidatePrefix("servicio:");renderServicioSurveys();e.target.reset();showToast("Encuesta de servicio guardada.");}
   function renderSeguimientoSurveys(){const t=id("tabla-seguimiento-encuesta");if(!t)return;t.innerHTML=seguimientoSurveys.map(x=>`<tr><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.como_se_entero||"—")}</td><td>${escapeHTML(x.fechas_pago)}</td><td>${escapeHTML(x.medio_contrato)}</td><td>${escapeHTML(x.atencion_asesor)}</td><td>${escapeHTML(x.redes_sociales)}</td><td>${escapeHTML(x.cobro_tecnico)}</td><td>${escapeHTML(x.medios_pago)}</td><td>${formatDate(x.created_at?.slice(0,10))}</td></tr>`).join("")||'<tr class="empty-row"><td colspan="10">No hay encuestas registradas.</td></tr>';}
   function renderServicioSurveys(){const t=id("tabla-servicio-encuesta");if(!t)return;t.innerHTML=servicioSurveys.map(x=>`<tr><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.servicio_retirado)}</td><td>${escapeHTML(x.motivo_retiro||"—")}</td><td>${escapeHTML(x.interes_retomar)}</td><td>${escapeHTML(x.observaciones||"—")}</td><td>${formatDate(x.created_at?.slice(0,10))}</td></tr>`).join("")||'<tr class="empty-row"><td colspan="7">No hay encuestas registradas.</td></tr>';}
-  function downloadSimpleCSV(name,rows){if(!rows.length){showToast("No hay datos para exportar.",true);return;}const keys=Object.keys(rows[0]).filter(k=>!["id","asesor_id"].includes(k));const csv=[keys.join(","),...rows.map(r=>keys.map(k=>`"${String(r[k]??"").replaceAll('"','""')}"`).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download=`reporte_${name}.csv`;a.click();}
+  function downloadSurveySimpleExcel(name,rows,columns,sheetName){
+    try{
+      if(!rows.length){showToast("No hay datos para exportar.",true);return;}
+      if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}
+      const data=rows.map(x=>columns.map(c=>{const v=typeof c.value==="function"?c.value(x):x[c.key];return v==null?"":String(v);}));
+      const ws=window.XLSX.utils.aoa_to_sheet([columns.map(c=>c.label),...data]);
+      ws["!cols"]=columns.map(c=>({wch:c.width||18}));
+      const wb=window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb,ws,sheetName||"Reporte");
+      window.XLSX.writeFile(wb,`reporte-${name}-${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("Reporte Excel descargado.");
+    }catch(e){console.error(e);showToast("No fue posible generar el Excel.",true);}
+  }
 
   async function saveAdminUser(e){e.preventDefault();const idUser=id("admin-user-id").value;const body={nombre:value("admin-user-nombre"),apellido:value("admin-user-apellido"),documento:value("admin-user-documento"),telefono:value("admin-user-telefono"),zona:"",email:value("admin-user-email"),meta_mensual:Math.max(0,parseInt(id("admin-user-meta").value,10)||META_POR_DEFECTO)};if(!idUser){const password=id("admin-user-password").value;if(password.length<6){showToast("La contraseña debe tener mínimo 6 caracteres.",true);return;}const {data,error}=await fetchAdminFunction("create",{...body,password});if(error){showToast(error,true);return;}showToast("Asesor creado correctamente.");resetUserForm();cacheInvalidate("advisors:all");cacheInvalidate("advisors:report");cacheInvalidatePrefix("dashboard:cartera:");await loadAdminData(true);return;}const result=await fetchAdminFunction("update",{user_id:idUser,...body});if(result.error){showToast(result.error,true);return;}showToast("Asesor actualizado.");resetUserForm();cacheInvalidate("advisors:all");cacheInvalidate("advisors:report");cacheInvalidatePrefix("dashboard:cartera:");await loadAdminData(true);}
   async function fetchAdminFunction(action,payload){const {data:{session}}=await sbClient.auth.getSession();if(!session)return{error:"Sesión no disponible."};try{const r=await fetch(`${SUPABASE_URL}/functions/v1/admin-users-cr`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({action,...payload})});const j=await r.json().catch(()=>({}));return r.ok?{data:j}:{error:j.error||`Error ${r.status}`};}catch(e){return{error:"No se pudo contactar la función de administración. Debes desplegar supabase/functions/admin-users-cr."};}}
@@ -1067,8 +1079,27 @@ ${sers}
   }
 
   document.addEventListener("DOMContentLoaded",()=>{populateSurveyAdvisorSelects();setReportDefaultDates();["seg-filter-from","seg-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();}));["seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>id(k)?.addEventListener("input",renderSeguimientoSurveys));id("seg-filter-clear")?.addEventListener("click",async()=>{clearSegFilters();await loadHistoricalSeguimiento();renderSeguimientoSurveys();});["srv-filter-from","srv-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalServicio();renderServicioSurveys();}));["srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>id(k)?.addEventListener("input",renderServicioSurveys));id("srv-filter-clear")?.addEventListener("click",async()=>{clearSrvFilters();await loadHistoricalServicio();renderServicioSurveys();});
-    id("btn-seg-excel")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();downloadSimpleCSV("seguimiento",getFilteredSeguimiento());});
-    id("btn-srv-excel")?.addEventListener("click",async()=>{await loadHistoricalServicio();downloadSimpleCSV("servicio",getFilteredServicio());});
+    id("btn-seg-excel")?.addEventListener("click",async()=>{
+      await loadHistoricalSeguimiento();
+      const rows=getFilteredSeguimiento();
+      downloadSurveySimpleExcel("seguimiento",rows,[
+        {label:"Asesor",width:26,value:x=>[x.perfilescr?.nombre,x.perfilescr?.apellido].filter(Boolean).join(" ")||advisorNameById(x.asesor_id)},
+        {label:"Usuario",width:24,key:"usuario"},{label:"Zona",width:20,key:"zona"},{label:"¿Cómo se enteró?",width:28,key:"como_se_entero"},
+        {label:"Fechas de pago",width:18,key:"fechas_pago"},{label:"Medio de contrato",width:24,key:"medio_contrato"},{label:"Atención asesor",width:20,key:"atencion_asesor"},
+        {label:"Redes sociales",width:18,key:"redes_sociales"},{label:"Cobro técnico",width:18,key:"cobro_tecnico"},{label:"Medios de pago",width:18,key:"medios_pago"},
+        {label:"Fecha",width:14,value:x=>formatDate(surveyDate(x))}
+      ],"Seguimiento");
+    });
+    id("btn-srv-excel")?.addEventListener("click",async()=>{
+      await loadHistoricalServicio();
+      const rows=getFilteredServicio();
+      downloadSurveySimpleExcel("servicio",rows,[
+        {label:"Asesor",width:26,value:x=>[x.perfilescr?.nombre,x.perfilescr?.apellido].filter(Boolean).join(" ")||advisorNameById(x.asesor_id)},
+        {label:"Usuario",width:24,key:"usuario"},{label:"Zona",width:20,key:"zona"},{label:"Servicio retirado",width:20,key:"servicio_retirado"},
+        {label:"Motivo retiro",width:28,key:"motivo_retiro"},{label:"Interés en retomar",width:22,key:"interes_retomar"},{label:"Observaciones",width:45,key:"observaciones"},
+        {label:"Fecha",width:14,value:x=>formatDate(surveyDate(x))}
+      ],"Servicio");
+    });
     id("btn-seg-preview")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();previewReport(buildSeguimientoReportHTML);});
     id("btn-seg-pdf")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();downloadPDF(buildSeguimientoReportHTML,"reporte-seguimiento-cartera");});
     id("btn-srv-preview")?.addEventListener("click",async()=>{await loadHistoricalServicio();renderServicioSurveys();previewReport(buildServicioReportHTML);});
