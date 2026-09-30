@@ -558,18 +558,97 @@
   async function saveServicioSurvey(e){e.preventDefault();const row={usuario:value("srvUsuario"),zona:value("srvZona")||null,servicio_retirado:value("srvServicio"),motivo_retiro:value("srvMotivo")||null,interes_retomar:value("srvRetomar"),observaciones:value("srvObservaciones")||null,asesor_id:currentUser.id};const {data,error}=await sbClient.from("encuestas_serviciocr").insert(row).select().single();if(error){showToast(error.message,true);return;}servicioSurveys.unshift(data);cacheInvalidatePrefix("servicio:");renderServicioSurveys();e.target.reset();showToast("Encuesta de servicio guardada.");}
   function renderSeguimientoSurveys(){const t=id("tabla-seguimiento-encuesta");if(!t)return;t.innerHTML=seguimientoSurveys.map(x=>`<tr><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.como_se_entero||"—")}</td><td>${escapeHTML(x.fechas_pago)}</td><td>${escapeHTML(x.medio_contrato)}</td><td>${escapeHTML(x.atencion_asesor)}</td><td>${escapeHTML(x.redes_sociales)}</td><td>${escapeHTML(x.cobro_tecnico)}</td><td>${escapeHTML(x.medios_pago)}</td><td>${formatDate(x.created_at?.slice(0,10))}</td></tr>`).join("")||'<tr class="empty-row"><td colspan="10">No hay encuestas registradas.</td></tr>';}
   function renderServicioSurveys(){const t=id("tabla-servicio-encuesta");if(!t)return;t.innerHTML=servicioSurveys.map(x=>`<tr><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.servicio_retirado)}</td><td>${escapeHTML(x.motivo_retiro||"—")}</td><td>${escapeHTML(x.interes_retomar)}</td><td>${escapeHTML(x.observaciones||"—")}</td><td>${formatDate(x.created_at?.slice(0,10))}</td></tr>`).join("")||'<tr class="empty-row"><td colspan="7">No hay encuestas registradas.</td></tr>';}
-  function downloadSurveySimpleExcel(name,rows,columns,sheetName){
+  function downloadSeguimientoExcel(rows){
+    (async () => {
     try{
       if(!rows.length){showToast("No hay datos para exportar.",true);return;}
       if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}
-      const data=rows.map(x=>columns.map(c=>{const v=typeof c.value==="function"?c.value(x):x[c.key];return v==null?"":String(v);}));
-      const ws=window.XLSX.utils.aoa_to_sheet([columns.map(c=>c.label),...data]);
-      ws["!cols"]=columns.map(c=>({wch:c.width||18}));
+      const atCats=["EXCELENTE","BUENO","REGULAR","MALO"],payCats=["SI","NO"];
+      const atCounts=categoryCounts(rows,atCats,x=>x.atencion_asesor);
+      const payCounts=categoryCounts(rows,payCats,x=>x.fechas_pago);
+      const porAsesor=advisorSurveySummary(rows);
+      const maxRows=Math.max(atCats.length,payCats.length,porAsesor.length,1);
+      const aoa=[["REPORTE DE ENCUESTAS DE SEGUIMIENTO"],["Periodo",`${value("seg-filter-from")?formatDate(value("seg-filter-from")):"Inicio"} – ${value("seg-filter-to")?formatDate(value("seg-filter-to")):"Actual"}`],["Total encuestas",rows.length],[],
+        ["Atención del asesor","Cantidad","","Fechas de pago informadas","Cantidad","","Asesor","Encuestas"]];
+      for(let i=0;i<maxRows;i++)aoa.push([atCats[i]??"",atCats[i]!==undefined?atCounts[i]:"","",payCats[i]??"",payCats[i]!==undefined?payCounts[i]:"","",porAsesor[i]?.name??"",porAsesor[i]?.total??""]);
+      const wsResumen=window.XLSX.utils.aoa_to_sheet(aoa);
+      wsResumen["!cols"]=[{wch:16},{wch:10},{wch:2},{wch:26},{wch:10},{wch:2},{wch:26},{wch:10}];
       const wb=window.XLSX.utils.book_new();
-      window.XLSX.utils.book_append_sheet(wb,ws,sheetName||"Reporte");
-      window.XLSX.writeFile(wb,`reporte-${name}-${new Date().toISOString().slice(0,10)}.xlsx`);
-      showToast("Reporte Excel descargado.");
-    }catch(e){console.error(e);showToast("No fue posible generar el Excel.",true);}
+      window.XLSX.utils.book_append_sheet(wb,wsResumen,"Resumen");
+      const wsGraficos=window.XLSX.utils.aoa_to_sheet([["Gráficos de encuestas de seguimiento"]]);wsGraficos["!cols"]=[{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsGraficos,"Gráficos");
+      const detail=rows.map(x=>({"Asesor":[x.perfilescr?.nombre,x.perfilescr?.apellido].filter(Boolean).join(" ")||advisorNameById(x.asesor_id),"Usuario":x.usuario||"","Zona":x.zona||"","¿Cómo se enteró?":x.como_se_entero||"","Fechas de pago":x.fechas_pago||"","Medio de contrato":x.medio_contrato||"","Atención asesor":x.atencion_asesor||"","Redes sociales":x.redes_sociales||"","Cobro técnico":x.cobro_tecnico||"","Medios de pago":x.medios_pago||"","Fecha":formatDate(surveyDate(x))}));
+      const wsDetalle=window.XLSX.utils.json_to_sheet(detail);
+      wsDetalle["!cols"]=[{wch:26},{wch:24},{wch:20},{wch:28},{wch:18},{wch:24},{wch:20},{wch:18},{wch:18},{wch:18},{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsDetalle,"Seguimiento");
+      const base=7;
+      const charts=[{
+        type:"pie",title:"Atención del asesor",sheetRef:"'Resumen'",
+        catRange:`$A$${base}:$A$${base+atCats.length-1}`,valRange:`$B$${base}:$B$${base+atCats.length-1}`,
+        catCount:atCats.length,cats:atCats,vals:atCounts,colors:["2ecc71","3498db","f1c40f","e74c3c"],
+        anchor:{fromCol:0,fromRow:2,toCol:5,toRow:18}
+      },{
+        type:"pie",title:"¿Le informaron fechas de pago?",sheetRef:"'Resumen'",
+        catRange:`$D$${base}:$D$${base+payCats.length-1}`,valRange:`$E$${base}:$E$${base+payCats.length-1}`,
+        catCount:payCats.length,cats:payCats,vals:payCounts,colors:["2ecc71","e74c3c"],
+        anchor:{fromCol:6,fromRow:2,toCol:11,toRow:18}
+      }];
+      if(porAsesor.length)charts.push({
+        type:"bar",title:"Encuestas por asesor",sheetRef:"'Resumen'",
+        catRange:`$G$${base}:$G$${base+porAsesor.length-1}`,catCount:porAsesor.length,cats:porAsesor.map(p=>p.name),
+        series:[{name:"Encuestas",valRange:`$H$${base}:$H$${base+porAsesor.length-1}`,vals:porAsesor.map(p=>p.total),color:"8064b3"}],
+        anchor:{fromCol:0,fromRow:20,toCol:11,toRow:36}
+      });
+      await saveWorkbookWithCharts(wb,2,charts,`reporte-seguimiento-${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("Reporte de seguimiento descargado con gráficos.");
+    }catch(e){console.error(e);showToast("No fue posible generar el Excel de seguimiento.",true);}
+    })();
+  }
+  function downloadServicioExcel(rows){
+    (async () => {
+    try{
+      if(!rows.length){showToast("No hay datos para exportar.",true);return;}
+      if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}
+      const svcCats=["TELEVISION","INTERNET","COMBO"],retCats=["SI","NO"];
+      const svcCounts=categoryCounts(rows,svcCats,x=>x.servicio_retirado);
+      const retCounts=categoryCounts(rows,retCats,x=>x.interes_retomar);
+      const porAsesor=advisorSurveySummary(rows);
+      const maxRows=Math.max(svcCats.length,retCats.length,porAsesor.length,1);
+      const aoa=[["REPORTE DE RETIROS DE SERVICIO"],["Periodo",`${value("srv-filter-from")?formatDate(value("srv-filter-from")):"Inicio"} – ${value("srv-filter-to")?formatDate(value("srv-filter-to")):"Actual"}`],["Total retiros",rows.length],[],
+        ["Servicio retirado","Cantidad","","¿Interesado en retomar?","Cantidad","","Asesor","Retiros"]];
+      for(let i=0;i<maxRows;i++)aoa.push([svcCats[i]??"",svcCats[i]!==undefined?svcCounts[i]:"","",retCats[i]??"",retCats[i]!==undefined?retCounts[i]:"","",porAsesor[i]?.name??"",porAsesor[i]?.total??""]);
+      const wsResumen=window.XLSX.utils.aoa_to_sheet(aoa);
+      wsResumen["!cols"]=[{wch:16},{wch:10},{wch:2},{wch:24},{wch:10},{wch:2},{wch:26},{wch:10}];
+      const wb=window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb,wsResumen,"Resumen");
+      const wsGraficos=window.XLSX.utils.aoa_to_sheet([["Gráficos de retiros de servicio"]]);wsGraficos["!cols"]=[{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsGraficos,"Gráficos");
+      const detail=rows.map(x=>({"Asesor":[x.perfilescr?.nombre,x.perfilescr?.apellido].filter(Boolean).join(" ")||advisorNameById(x.asesor_id),"Usuario":x.usuario||"","Zona":x.zona||"","Servicio retirado":x.servicio_retirado||"","Motivo retiro":x.motivo_retiro||"","Interés en retomar":x.interes_retomar||"","Observaciones":x.observaciones||"","Fecha":formatDate(surveyDate(x))}));
+      const wsDetalle=window.XLSX.utils.json_to_sheet(detail);
+      wsDetalle["!cols"]=[{wch:26},{wch:24},{wch:20},{wch:20},{wch:28},{wch:20},{wch:45},{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsDetalle,"Servicio");
+      const base=7;
+      const charts=[{
+        type:"pie",title:"Servicio retirado",sheetRef:"'Resumen'",
+        catRange:`$A$${base}:$A$${base+svcCats.length-1}`,valRange:`$B$${base}:$B$${base+svcCats.length-1}`,
+        catCount:svcCats.length,cats:svcCats,vals:svcCounts,colors:["3498db","9b59b6","2ecc71"],
+        anchor:{fromCol:0,fromRow:2,toCol:5,toRow:18}
+      },{
+        type:"pie",title:"¿Interesado en retomar?",sheetRef:"'Resumen'",
+        catRange:`$D$${base}:$D$${base+retCats.length-1}`,valRange:`$E$${base}:$E$${base+retCats.length-1}`,
+        catCount:retCats.length,cats:retCats,vals:retCounts,colors:["2ecc71","e74c3c"],
+        anchor:{fromCol:6,fromRow:2,toCol:11,toRow:18}
+      }];
+      if(porAsesor.length)charts.push({
+        type:"bar",title:"Retiros por asesor",sheetRef:"'Resumen'",
+        catRange:`$G$${base}:$G$${base+porAsesor.length-1}`,catCount:porAsesor.length,cats:porAsesor.map(p=>p.name),
+        series:[{name:"Retiros",valRange:`$H$${base}:$H$${base+porAsesor.length-1}`,vals:porAsesor.map(p=>p.total),color:"8064b3"}],
+        anchor:{fromCol:0,fromRow:20,toCol:11,toRow:36}
+      });
+      await saveWorkbookWithCharts(wb,2,charts,`reporte-servicio-${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("Reporte de servicio descargado con gráficos.");
+    }catch(e){console.error(e);showToast("No fue posible generar el Excel de servicio.",true);}
+    })();
   }
 
   async function saveAdminUser(e){e.preventDefault();const idUser=id("admin-user-id").value;const body={nombre:value("admin-user-nombre"),apellido:value("admin-user-apellido"),documento:value("admin-user-documento"),telefono:value("admin-user-telefono"),zona:"",email:value("admin-user-email"),meta_mensual:Math.max(0,parseInt(id("admin-user-meta").value,10)||META_POR_DEFECTO)};if(!idUser){const password=id("admin-user-password").value;if(password.length<6){showToast("La contraseña debe tener mínimo 6 caracteres.",true);return;}const {data,error}=await fetchAdminFunction("create",{...body,password});if(error){showToast(error,true);return;}showToast("Asesor creado correctamente.");resetUserForm();cacheInvalidate("advisors:all");cacheInvalidate("advisors:report");cacheInvalidatePrefix("dashboard:cartera:");await loadAdminData(true);return;}const result=await fetchAdminFunction("update",{user_id:idUser,...body});if(result.error){showToast(result.error,true);return;}showToast("Asesor actualizado.");resetUserForm();cacheInvalidate("advisors:all");cacheInvalidate("advisors:report");cacheInvalidatePrefix("dashboard:cartera:");await loadAdminData(true);}
@@ -603,6 +682,21 @@
     }).sort((x,y)=>y.pct-x.pct);
   }
   function metasTablaHTML(list){const filas=metasResumen(list);if(!filas.length)return "";const tot=filas.reduce((acc,f)=>({meta:acc.meta+f.meta,hechas:acc.hechas+f.hechas}),{meta:0,hechas:0});return `<section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">METAS</span><h2>Cumplimiento de metas por asesor</h2></div><strong>${metaPct(tot.hechas,tot.meta)}% global</strong></div><div class="goal-chart print-goal-chart">${filas.map(f=>`<div class="goal-chart-row"><div class="goal-chart-head"><strong>${escapeHTML(f.nombre)}</strong><span>${f.hechas} / ${f.meta} llamadas · ${f.pct}%</span></div><div class="goal-track"><i style="width:${Math.min(100,f.pct)}%"></i></div></div>`).join("")}</div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Meta</th><th>Llamadas realizadas</th><th>Pendientes</th><th>% de cumplimiento</th></tr></thead><tbody>${filas.map(f=>`<tr><td>${escapeHTML(f.nombre)}</td><td>${f.meta}</td><td>${f.hechas}</td><td>${f.pendientes}</td><td>${f.pct}%</td></tr>`).join("")}<tr><td><strong>TOTAL</strong></td><td><strong>${tot.meta}</strong></td><td><strong>${tot.hechas}</strong></td><td><strong>${Math.max(0,tot.meta-tot.hechas)}</strong></td><td><strong>${metaPct(tot.hechas,tot.meta)}%</strong></td></tr></tbody></table></div></section>`;}
+
+  function advisorSurveySummary(list){
+    const groups={};
+    (list||[]).forEach(x=>{
+      const a=x.perfilescr||{};
+      const name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||advisorNameById(x.asesor_id)||"Sin asesor";
+      const key=x.asesor_id||name;
+      if(!groups[key])groups[key]={name,total:0};
+      groups[key].total++;
+    });
+    return Object.values(groups).sort((a,b)=>b.total-a.total);
+  }
+  function categoryCounts(list,categories,getter){
+    return categories.map(label=>list.filter(x=>(getter(x)||"Sin respuesta")===label).length);
+  }
 
   function advisorCallSummary(list){
     const groups={};
@@ -959,6 +1053,12 @@ ${sers}
   }
   function buildSurveyReportHTML(){
     const filtered=getFilteredSurveys();
+    const recoCats=["SI","NO","Sin respuesta"],recoColors=["#2ecc71","#e74c3c","#95a5a6"];
+    const califCats=["EXCELENTE","BUENO","REGULAR","MALO","MUY MALO"],califColors=["#2ecc71","#3498db","#f1c40f","#e67e22","#e74c3c"];
+    const recoSeg=recoCats.map((label,i)=>({label,value:filtered.filter(s=>(s.recomendaria||"Sin respuesta")===label).length,color:recoColors[i]}));
+    const califSeg=califCats.map((label,i)=>({label,value:filtered.filter(s=>(s.calificacion_servicio||"Sin respuesta")===label).length,color:califColors[i]}));
+    const comparativo=advisorSurveySummary(filtered).slice(0,10).map(g=>({label:g.name,value:g.total,color:"#8064b3"}));
+    const chartsHTML=`<section class="print-charts">${donutCardHTML("¿Recomendaría nuestros servicios?",recoSeg,filtered.length,"total")}${donutCardHTML("Calificación del servicio",califSeg,filtered.length,"total")}<div class="print-chart-card" style="grid-column:1 / -1"><h2>Encuestas por asesor</h2>${svgBarCompare(comparativo,900)}</div></section>`;
     const questions=[
       ["01. Usuario encuestado",s=>s.codigo_usuario],
       ["02. Servicio",s=>s.calificacion_servicio],
@@ -972,12 +1072,27 @@ ${sers}
       const a=s.perfilescr||{},l=s.llamadascr||{},name=[a.nombre,a.apellido].filter(Boolean).join(" ")||a.email||"—";
       return `<tr><td>${formatDate(s.fecha_encuesta||s.created_at?.slice(0,10))}</td><td>${formatDate(l.fecha_llamada)}</td><td>${escapeHTML(name)}</td><td>${escapeHTML(s.codigo_usuario||l.cliente||"—")}</td><td>${escapeHTML(s.zona||l.zona||"—")}</td><td>${escapeHTML(l.llamada||"—")}</td><td>${escapeHTML(l.tipo_gestion||"—")}</td><td>${escapeHTML(l.observaciones||"—")}</td>${questions.map(([,get])=>`<td>${escapeHTML(get(s)||"—")}</td>`).join("")}<td>${escapeHTML(s.observacion_servicio||"—")}</td><td>${escapeHTML(s.observacion_tecnica||"—")}</td><td>${escapeHTML(s.observacion_administrativa||"—")}</td></tr>`;
     }).join("");
-    return `<div class="print-report-sheet survey-print-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">REPORTE DE SATISFACCIÓN</span><h1>Encuestas por asesor</h1><p>Asesor: <strong>${escapeHTML(surveyAdvisorFilterName())}</strong> · Periodo: <strong>${escapeHTML(surveyPeriod())}</strong></p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total encuestas</span><strong>${filtered.length}</strong></div><div class="print-summary-card"><span>Recomendarían</span><strong>${filtered.filter(s=>s.recomendaria==="SI").length}</strong></div><div class="print-summary-card"><span>No recomendarían</span><strong>${filtered.filter(s=>s.recomendaria==="NO").length}</strong></div></div><section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">7 RESPUESTAS</span><h2>Detalle de encuestas</h2></div><strong>${filtered.length} encuesta${filtered.length===1?"":"s"}</strong></div><div class="print-table-scroll"><table class="survey-report-table"><thead><tr><th>Fecha encuesta</th><th>Fecha llamada</th><th>Asesor</th><th>Cliente</th><th>Zona</th><th>Llamada</th><th>Tipo de gestión</th><th>Obs. llamada</th><th>01. Usuario</th><th>02. Servicio</th><th>03. Técnica</th><th>04. Administrativa</th><th>05. Averías</th><th>06. Recomendaría</th><th>07. Recomendación</th><th>Obs. servicio</th><th>Obs. técnica</th><th>Obs. administrativa</th></tr></thead><tbody>${rows||'<tr><td colspan="18" class="print-empty-row">No hay encuestas para los filtros seleccionados.</td></tr>'}</tbody></table></div></section></div>`;
+    return `<div class="print-report-sheet survey-print-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">REPORTE DE SATISFACCIÓN</span><h1>Encuestas por asesor</h1><p>Asesor: <strong>${escapeHTML(surveyAdvisorFilterName())}</strong> · Periodo: <strong>${escapeHTML(surveyPeriod())}</strong></p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total encuestas</span><strong>${filtered.length}</strong></div><div class="print-summary-card"><span>Recomendarían</span><strong>${filtered.filter(s=>s.recomendaria==="SI").length}</strong></div><div class="print-summary-card"><span>No recomendarían</span><strong>${filtered.filter(s=>s.recomendaria==="NO").length}</strong></div></div>${chartsHTML}<section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">7 RESPUESTAS</span><h2>Detalle de encuestas</h2></div><strong>${filtered.length} encuesta${filtered.length===1?"":"s"}</strong></div><div class="print-table-scroll"><table class="survey-report-table"><thead><tr><th>Fecha encuesta</th><th>Fecha llamada</th><th>Asesor</th><th>Cliente</th><th>Zona</th><th>Llamada</th><th>Tipo de gestión</th><th>Obs. llamada</th><th>01. Usuario</th><th>02. Servicio</th><th>03. Técnica</th><th>04. Administrativa</th><th>05. Averías</th><th>06. Recomendaría</th><th>07. Recomendación</th><th>Obs. servicio</th><th>Obs. técnica</th><th>Obs. administrativa</th></tr></thead><tbody>${rows||'<tr><td colspan="18" class="print-empty-row">No hay encuestas para los filtros seleccionados.</td></tr>'}</tbody></table></div></section></div>`;
   }
   function downloadSurveyExcel(){
+    (async () => {
     try{
       if(!window.XLSX){showToast("No se pudo cargar el módulo de Excel.",true);return;}
       const filtered=getFilteredSurveys();
+      const recoCats=["SI","NO","Sin respuesta"],califCats=["EXCELENTE","BUENO","REGULAR","MALO","MUY MALO"];
+      const recoCounts=categoryCounts(filtered,recoCats,s=>s.recomendaria);
+      const califCounts=categoryCounts(filtered,califCats,s=>s.calificacion_servicio);
+      const porAsesor=advisorSurveySummary(filtered);
+      const maxRows=Math.max(recoCats.length,califCats.length,porAsesor.length,1);
+      const aoa=[["REPORTE DE ENCUESTAS DE SATISFACCIÓN"],["Asesor",surveyAdvisorFilterName()],["Periodo",surveyPeriod()],["Total encuestas",filtered.length],[],
+        ["¿Recomendaría?","Cantidad","","Calificación del servicio","Cantidad","","Asesor","Encuestas"]];
+      for(let i=0;i<maxRows;i++)aoa.push([recoCats[i]??"",recoCats[i]!==undefined?recoCounts[i]:"","",califCats[i]??"",califCats[i]!==undefined?califCounts[i]:"","",porAsesor[i]?.name??"",porAsesor[i]?.total??""]);
+      const wsResumen=window.XLSX.utils.aoa_to_sheet(aoa);
+      wsResumen["!cols"]=[{wch:16},{wch:10},{wch:2},{wch:22},{wch:10},{wch:2},{wch:26},{wch:10}];
+      const wb=window.XLSX.utils.book_new();
+      window.XLSX.utils.book_append_sheet(wb,wsResumen,"Resumen");
+      const wsGraficos=window.XLSX.utils.aoa_to_sheet([["Gráficos de encuestas de satisfacción"]]);wsGraficos["!cols"]=[{wch:14}];
+      window.XLSX.utils.book_append_sheet(wb,wsGraficos,"Gráficos");
       const detail=filtered.map(s=>{
         const a=s.perfilescr||{},l=s.llamadascr||{};
         return {
@@ -991,15 +1106,31 @@ ${sers}
           "Observación administrativa":s.observacion_administrativa||""
         };
       });
-      const ws=window.XLSX.utils.json_to_sheet(detail.length?detail:[{"Fecha":"","Asesor":""}]);
-      ws["!cols"]=[{wch:14},{wch:14},{wch:24},{wch:26},{wch:16},{wch:18},{wch:28},{wch:36},{wch:18},{wch:18},{wch:20},{wch:22},{wch:16},{wch:40},{wch:35},{wch:35},{wch:35}];
-      const wb=window.XLSX.utils.book_new();
-      window.XLSX.utils.book_append_sheet(wb,ws,"Encuestas");
-      const summary=window.XLSX.utils.aoa_to_sheet([["REPORTE DE ENCUESTAS"],["Asesor",surveyAdvisorFilterName()],["Periodo",surveyPeriod()],["Total encuestas",filtered.length],["Recomendarían",filtered.filter(s=>s.recomendaria==="SI").length],["No recomendarían",filtered.filter(s=>s.recomendaria==="NO").length]]);
-      window.XLSX.utils.book_append_sheet(wb,summary,"Resumen");
-      window.XLSX.writeFile(wb,`reporte-encuestas-cartera-${new Date().toISOString().slice(0,10)}.xlsx`);
-      showToast("Reporte de encuestas descargado.");
+      const wsDetalle=window.XLSX.utils.json_to_sheet(detail.length?detail:[{"Fecha":"","Asesor":""}]);
+      wsDetalle["!cols"]=[{wch:14},{wch:14},{wch:24},{wch:26},{wch:16},{wch:18},{wch:28},{wch:36},{wch:18},{wch:18},{wch:20},{wch:22},{wch:16},{wch:40},{wch:35},{wch:35},{wch:35}];
+      window.XLSX.utils.book_append_sheet(wb,wsDetalle,"Encuestas");
+      const base=7; // fila 1 = encabezado de grupo en "Resumen"
+      const charts=filtered.length?[{
+        type:"pie",title:"¿Recomendaría nuestros servicios?",sheetRef:"'Resumen'",
+        catRange:`$A$${base}:$A$${base+recoCats.length-1}`,valRange:`$B$${base}:$B$${base+recoCats.length-1}`,
+        catCount:recoCats.length,cats:recoCats,vals:recoCounts,colors:["2ecc71","e74c3c","95a5a6"],
+        anchor:{fromCol:0,fromRow:2,toCol:5,toRow:18}
+      },{
+        type:"pie",title:"Calificación del servicio",sheetRef:"'Resumen'",
+        catRange:`$D$${base}:$D$${base+califCats.length-1}`,valRange:`$E$${base}:$E$${base+califCats.length-1}`,
+        catCount:califCats.length,cats:califCats,vals:califCounts,colors:["2ecc71","3498db","f1c40f","e67e22","e74c3c"],
+        anchor:{fromCol:6,fromRow:2,toCol:11,toRow:18}
+      }]:[];
+      if(porAsesor.length)charts.push({
+        type:"bar",title:"Encuestas por asesor",sheetRef:"'Resumen'",
+        catRange:`$G$${base}:$G$${base+porAsesor.length-1}`,catCount:porAsesor.length,cats:porAsesor.map(p=>p.name),
+        series:[{name:"Encuestas",valRange:`$H$${base}:$H$${base+porAsesor.length-1}`,vals:porAsesor.map(p=>p.total),color:"8064b3"}],
+        anchor:{fromCol:0,fromRow:20,toCol:11,toRow:36}
+      });
+      await saveWorkbookWithCharts(wb,2,charts,`reporte-encuestas-cartera-${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast("Reporte de encuestas descargado con gráficos.");
     }catch(e){console.error(e);showToast("No fue posible generar el Excel de encuestas.",true);}
+    })();
   }
 
   const ALL_VIEWS=["auth-view","vista-asesor","admin-dashboard","vista-admin","vista-encuestas-hub","vista-encuestas","vista-encuesta-seguimiento","vista-encuesta-servicio","vista-usuarios","vista-configuracion","vista-respaldo"];
@@ -1059,13 +1190,25 @@ ${sers}
 
   function buildSeguimientoReportHTML(){
     const rows=getFilteredSeguimiento();
+    const atCats=["EXCELENTE","BUENO","REGULAR","MALO"],atColors=["#2ecc71","#3498db","#f1c40f","#e74c3c"];
+    const payCats=["SI","NO"],payColors=["#2ecc71","#e74c3c"];
+    const atSeg=atCats.map((label,i)=>({label,value:rows.filter(x=>(x.atencion_asesor||"Sin respuesta")===label).length,color:atColors[i]}));
+    const paySeg=payCats.map((label,i)=>({label,value:rows.filter(x=>(x.fechas_pago||"Sin respuesta")===label).length,color:payColors[i]}));
+    const comparativo=advisorSurveySummary(rows).slice(0,10).map(g=>({label:g.name,value:g.total,color:"#8064b3"}));
+    const chartsHTML=`<section class="print-charts">${donutCardHTML("Atención del asesor",atSeg,rows.length,"total")}${donutCardHTML("¿Le informaron fechas de pago?",paySeg,rows.length,"total")}<div class="print-chart-card" style="grid-column:1 / -1"><h2>Encuestas por asesor</h2>${svgBarCompare(comparativo,900)}</div></section>`;
     const trs=rows.map(x=>`<tr><td>${escapeHTML(x.perfilescr?[x.perfilescr.nombre,x.perfilescr.apellido].filter(Boolean).join(" ")||x.perfilescr.email||"—":advisorNameById(x.asesor_id))}</td><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.como_se_entero||"—")}</td><td>${escapeHTML(x.fechas_pago)}</td><td>${escapeHTML(x.medio_contrato)}</td><td>${escapeHTML(x.atencion_asesor)}</td><td>${escapeHTML(x.redes_sociales)}</td><td>${escapeHTML(x.cobro_tecnico)}</td><td>${escapeHTML(x.medios_pago)}</td><td>${formatDate(surveyDate(x))}</td></tr>`).join("");
-    return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">ENCUESTA DE SEGUIMIENTO</span><h1>Reporte de seguimiento</h1><p>${rows.length} registro${rows.length===1?"":"s"}</p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total encuestas</span><strong>${rows.length}</strong></div><div class="print-summary-card"><span>Fechas de pago informadas</span><strong>${rows.filter(x=>x.fechas_pago==="SI").length}</strong></div><div class="print-summary-card"><span>Cobro técnico adicional</span><strong>${rows.filter(x=>x.cobro_tecnico==="SI").length}</strong></div></div><section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE</span><h2>Encuestas de seguimiento</h2></div></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Usuario</th><th>Zona</th><th>¿Cómo se enteró?</th><th>Fechas de pago</th><th>Contrato</th><th>Atención</th><th>Redes</th><th>Cobro técnico</th><th>Medios de pago</th><th>Fecha</th></tr></thead><tbody>${trs||'<tr><td colspan="11" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
+    return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">ENCUESTA DE SEGUIMIENTO</span><h1>Reporte de seguimiento</h1><p>${rows.length} registro${rows.length===1?"":"s"}</p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total encuestas</span><strong>${rows.length}</strong></div><div class="print-summary-card"><span>Fechas de pago informadas</span><strong>${rows.filter(x=>x.fechas_pago==="SI").length}</strong></div><div class="print-summary-card"><span>Cobro técnico adicional</span><strong>${rows.filter(x=>x.cobro_tecnico==="SI").length}</strong></div></div>${chartsHTML}<section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE</span><h2>Encuestas de seguimiento</h2></div></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Usuario</th><th>Zona</th><th>¿Cómo se enteró?</th><th>Fechas de pago</th><th>Contrato</th><th>Atención</th><th>Redes</th><th>Cobro técnico</th><th>Medios de pago</th><th>Fecha</th></tr></thead><tbody>${trs||'<tr><td colspan="11" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
   }
   function buildServicioReportHTML(){
     const rows=getFilteredServicio();
+    const svcCats=["TELEVISION","INTERNET","COMBO"],svcColors=["#3498db","#9b59b6","#2ecc71"];
+    const retCats=["SI","NO"],retColors=["#2ecc71","#e74c3c"];
+    const svcSeg=svcCats.map((label,i)=>({label,value:rows.filter(x=>(x.servicio_retirado||"Sin respuesta")===label).length,color:svcColors[i]}));
+    const retSeg=retCats.map((label,i)=>({label,value:rows.filter(x=>(x.interes_retomar||"Sin respuesta")===label).length,color:retColors[i]}));
+    const comparativo=advisorSurveySummary(rows).slice(0,10).map(g=>({label:g.name,value:g.total,color:"#8064b3"}));
+    const chartsHTML=`<section class="print-charts">${donutCardHTML("Servicio retirado",svcSeg,rows.length,"total")}${donutCardHTML("¿Interesado en retomar?",retSeg,rows.length,"total")}<div class="print-chart-card" style="grid-column:1 / -1"><h2>Retiros por asesor</h2>${svgBarCompare(comparativo,900)}</div></section>`;
     const trs=rows.map(x=>`<tr><td>${escapeHTML(x.perfilescr?[x.perfilescr.nombre,x.perfilescr.apellido].filter(Boolean).join(" ")||x.perfilescr.email||"—":advisorNameById(x.asesor_id))}</td><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.servicio_retirado)}</td><td>${escapeHTML(x.motivo_retiro||"—")}</td><td>${escapeHTML(x.interes_retomar)}</td><td>${escapeHTML(x.observaciones||"—")}</td><td>${formatDate(surveyDate(x))}</td></tr>`).join("");
-    return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">ENCUESTA DE SERVICIO</span><h1>Reporte de retiros de servicio</h1><p>${rows.length} registro${rows.length===1?"":"s"}</p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total retiros</span><strong>${rows.length}</strong></div><div class="print-summary-card"><span>Interesados en retomar</span><strong>${rows.filter(x=>x.interes_retomar==="SI").length}</strong></div><div class="print-summary-card"><span>No interesados</span><strong>${rows.filter(x=>x.interes_retomar==="NO").length}</strong></div></div><section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE</span><h2>Encuestas de servicio</h2></div></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Usuario</th><th>Zona</th><th>Servicio</th><th>Motivo retiro</th><th>Retomaría</th><th>Observaciones</th><th>Fecha</th></tr></thead><tbody>${trs||'<tr><td colspan="7" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
+    return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">ENCUESTA DE SERVICIO</span><h1>Reporte de retiros de servicio</h1><p>${rows.length} registro${rows.length===1?"":"s"}</p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total retiros</span><strong>${rows.length}</strong></div><div class="print-summary-card"><span>Interesados en retomar</span><strong>${rows.filter(x=>x.interes_retomar==="SI").length}</strong></div><div class="print-summary-card"><span>No interesados</span><strong>${rows.filter(x=>x.interes_retomar==="NO").length}</strong></div></div>${chartsHTML}<section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE</span><h2>Encuestas de servicio</h2></div></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Usuario</th><th>Zona</th><th>Servicio</th><th>Motivo retiro</th><th>Retomaría</th><th>Observaciones</th><th>Fecha</th></tr></thead><tbody>${trs||'<tr><td colspan="7" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
   }
 
   function setReportDefaultDates(){
@@ -1079,27 +1222,8 @@ ${sers}
   }
 
   document.addEventListener("DOMContentLoaded",()=>{populateSurveyAdvisorSelects();setReportDefaultDates();["seg-filter-from","seg-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();}));["seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>id(k)?.addEventListener("input",renderSeguimientoSurveys));id("seg-filter-clear")?.addEventListener("click",async()=>{clearSegFilters();await loadHistoricalSeguimiento();renderSeguimientoSurveys();});["srv-filter-from","srv-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalServicio();renderServicioSurveys();}));["srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>id(k)?.addEventListener("input",renderServicioSurveys));id("srv-filter-clear")?.addEventListener("click",async()=>{clearSrvFilters();await loadHistoricalServicio();renderServicioSurveys();});
-    id("btn-seg-excel")?.addEventListener("click",async()=>{
-      await loadHistoricalSeguimiento();
-      const rows=getFilteredSeguimiento();
-      downloadSurveySimpleExcel("seguimiento",rows,[
-        {label:"Asesor",width:26,value:x=>[x.perfilescr?.nombre,x.perfilescr?.apellido].filter(Boolean).join(" ")||advisorNameById(x.asesor_id)},
-        {label:"Usuario",width:24,key:"usuario"},{label:"Zona",width:20,key:"zona"},{label:"¿Cómo se enteró?",width:28,key:"como_se_entero"},
-        {label:"Fechas de pago",width:18,key:"fechas_pago"},{label:"Medio de contrato",width:24,key:"medio_contrato"},{label:"Atención asesor",width:20,key:"atencion_asesor"},
-        {label:"Redes sociales",width:18,key:"redes_sociales"},{label:"Cobro técnico",width:18,key:"cobro_tecnico"},{label:"Medios de pago",width:18,key:"medios_pago"},
-        {label:"Fecha",width:14,value:x=>formatDate(surveyDate(x))}
-      ],"Seguimiento");
-    });
-    id("btn-srv-excel")?.addEventListener("click",async()=>{
-      await loadHistoricalServicio();
-      const rows=getFilteredServicio();
-      downloadSurveySimpleExcel("servicio",rows,[
-        {label:"Asesor",width:26,value:x=>[x.perfilescr?.nombre,x.perfilescr?.apellido].filter(Boolean).join(" ")||advisorNameById(x.asesor_id)},
-        {label:"Usuario",width:24,key:"usuario"},{label:"Zona",width:20,key:"zona"},{label:"Servicio retirado",width:20,key:"servicio_retirado"},
-        {label:"Motivo retiro",width:28,key:"motivo_retiro"},{label:"Interés en retomar",width:22,key:"interes_retomar"},{label:"Observaciones",width:45,key:"observaciones"},
-        {label:"Fecha",width:14,value:x=>formatDate(surveyDate(x))}
-      ],"Servicio");
-    });
+    id("btn-seg-excel")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();downloadSeguimientoExcel(getFilteredSeguimiento());});
+    id("btn-srv-excel")?.addEventListener("click",async()=>{await loadHistoricalServicio();downloadServicioExcel(getFilteredServicio());});
     id("btn-seg-preview")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();previewReport(buildSeguimientoReportHTML);});
     id("btn-seg-pdf")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();downloadPDF(buildSeguimientoReportHTML,"reporte-seguimiento-cartera");});
     id("btn-srv-preview")?.addEventListener("click",async()=>{await loadHistoricalServicio();renderServicioSurveys();previewReport(buildServicioReportHTML);});
