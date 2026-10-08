@@ -465,6 +465,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .print-final-goal-track { height: 11px; background: rgba(255,255,255,.28); border-radius: 999px; overflow: hidden; }
 .print-final-goal-track i { display: block; height: 100%; background: #fff; border-radius: 999px; }
 
+.print-question-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0 0 18px; page-break-inside:auto; }
+.print-question-card { border:1px solid #e4def0; border-radius:11px; padding:10px 12px; background:#fff; page-break-inside:avoid; break-inside:avoid; }
+.print-question-card h3 { margin:0 0 8px; font-size:11px; line-height:1.35; color:#3c3157; }
+.print-question-card table { min-width:0 !important; font-size:9px; }
+.print-question-card th, .print-question-card td { padding:5px 6px; }
+.print-question-card td:nth-child(2), .print-question-card td:nth-child(3) { width:70px; text-align:center; white-space:nowrap; }
 .print-table-section { page-break-inside: auto; }
 .print-table-title { display: flex; justify-content: space-between; align-items: flex-end; gap: 15px; margin: 0 0 8px; padding-bottom: 7px; border-bottom: 1px solid #e7e2ef; }
 .print-table-title h2 { margin: 0; font-size: 15px; color: #3c3157; }
@@ -490,7 +496,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .multiselect-option input { margin: 0; }
 
 @media (max-width: 640px) {
-  .print-charts { grid-template-columns: 1fr; }
+  .print-charts, .print-question-grid { grid-template-columns: 1fr; }
   .print-final-goal { grid-template-columns: 1fr; text-align: center; }
 }
 
