@@ -605,3 +605,20 @@ tbody tr:last-child td { border-bottom: 0; }
 /* Acciones de encabezado para dashboard y búsqueda de asesores */
 .page-heading-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 @media (max-width:760px){.page-heading-actions{width:100%}.page-heading-actions .btn-secondary{width:100%}}
+
+/* Gráficos por pregunta y por asesor */
+.print-question-card .print-chart-figure{display:flex;align-items:center;gap:10px}
+.print-question-card .print-chart-figure svg{flex:0 0 108px;width:108px;height:108px}
+.print-question-card .print-legend span{white-space:normal}
+.print-question-wide{grid-column:1 / -1}
+.print-question-card svg{display:block;max-width:100%}
+.print-legend-row{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:8.5px;color:#5e5968}
+.print-legend-row span{display:inline-flex;align-items:center;gap:5px}
+.print-legend-row strong{color:#3c3157}
+.print-section-title{margin:6px 0 10px}
+.print-section-title h2{margin:2px 0 0;font-size:14px;color:#3c3157}
+
+/* PDF: la tabla de detalle debe caber completa en la hoja (antes se cortaba a la derecha y faltaban las preguntas) */
+#print-report.pdf-rendering .print-table-scroll{overflow:visible !important}
+#print-report.pdf-rendering .print-table-section table{min-width:0 !important;width:100% !important;table-layout:auto}
+#print-report.pdf-rendering .print-table-section th,#print-report.pdf-rendering .print-table-section td{min-width:0 !important;font-size:7.5px;padding:3px 4px;white-space:normal;word-break:break-word;vertical-align:top}
