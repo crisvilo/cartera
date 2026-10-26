@@ -155,6 +155,7 @@
     id("adminEncOrigen")?.addEventListener("change", toggleSurveyCallMode); id("adminEncLlamada")?.addEventListener("change", applySelectedSurveyCall); id("adminEncLlamadaSearch")?.addEventListener("input",()=>{clearTimeout(surveyCallSearchTimer);surveyCallSearchTimer=setTimeout(()=>loadSurveyCalls(value("adminEncLlamadaSearch")),350);});
     ["filtroEncuestaTexto"].forEach(x => { if(id(x)) id(x).addEventListener("input", renderSurveys); });
     ["filtroEncuestaDesde","filtroEncuestaHasta"].forEach(x => { if(id(x)) id(x).addEventListener("change", applySurveyFilters); });
+    if(id("filtroEncuestaZona")) id("filtroEncuestaZona").addEventListener("change", async()=>{await loadHistoricalSurveys();renderSurveys();});
     id("btn-clear-survey-filters").addEventListener("click", clearSurveyFilters);
     id("btn-preview-survey-report").addEventListener("click", async () => {await prepareReportData("surveys");previewReport(buildSurveyReportHTML);});
     id("btn-print-survey-report").addEventListener("click", async () => {await prepareReportData("surveys");printReport(buildSurveyReportHTML);});
@@ -304,34 +305,36 @@
     populateSurveyMulti("servicio");
   }
   async function loadHistoricalSeguimiento(){
-    const from=value("seg-filter-from"),to=value("seg-filter-to"),advisorIds=surveyAdvisorIds("seguimiento");
-    const key=`seguimiento:history:v2:${from||"all"}:${to||"all"}:${advisorIds.sort().join(",")||"all"}`;
+    const from=value("seg-filter-from"),to=value("seg-filter-to"),zona=value("seg-filter-zona"),advisorIds=surveyAdvisorIds("seguimiento");
+    const key=`seguimiento:history:v3:${from||"all"}:${to||"all"}:${zona||"all"}:${advisorIds.sort().join(",")||"all"}`;
     seguimientoSurveys=await cachedQuery(key,()=>{
       let q=sbClient.from("encuestas_seguimientocr").select("id,asesor_id,usuario,zona,como_se_entero,fechas_pago,medio_contrato,atencion_asesor,redes_sociales,cobro_tecnico,medios_pago,observacion,created_at,perfilescr(id,nombre,apellido,email)").order("id",{ascending:false});
       if(filterAdvisorsSource().length && !advisorIds.length)return Promise.resolve([]);
       if(advisorIds.length && advisorIds.length<filterAdvisorsSource().length) q=q.in("asesor_id",advisorIds);
       if(from){const b=colombiaDayBounds(from);q=q.gte("created_at",b.from);}
       if(to){const b=colombiaDayBounds(to);q=q.lt("created_at",b.to);}
+      if(zona)q=q.eq("zona",zona);
       return fetchAllPaged(()=>q,1000);
     });
     return seguimientoSurveys;
   }
   async function loadHistoricalServicio(){
-    const from=value("srv-filter-from"),to=value("srv-filter-to"),advisorIds=surveyAdvisorIds("servicio");
-    const key=`servicio:history:v2:${from||"all"}:${to||"all"}:${advisorIds.sort().join(",")||"all"}`;
+    const from=value("srv-filter-from"),to=value("srv-filter-to"),zona=value("srv-filter-zona"),advisorIds=surveyAdvisorIds("servicio");
+    const key=`servicio:history:v3:${from||"all"}:${to||"all"}:${zona||"all"}:${advisorIds.sort().join(",")||"all"}`;
     servicioSurveys=await cachedQuery(key,()=>{
       let q=sbClient.from("encuestas_serviciocr").select("id,asesor_id,usuario,zona,servicio_retirado,motivo_retiro,interes_retomar,observaciones,created_at,perfilescr(id,nombre,apellido,email)").order("id",{ascending:false});
       if(filterAdvisorsSource().length && !advisorIds.length)return Promise.resolve([]);
       if(advisorIds.length && advisorIds.length<filterAdvisorsSource().length) q=q.in("asesor_id",advisorIds);
       if(from){const b=colombiaDayBounds(from);q=q.gte("created_at",b.from);}
       if(to){const b=colombiaDayBounds(to);q=q.lt("created_at",b.to);}
+      if(zona)q=q.eq("zona",zona);
       return fetchAllPaged(()=>q,1000);
     });
     return servicioSurveys;
   }
   async function loadHistoricalSurveys(){
-    const from=value("filtroEncuestaDesde"),to=value("filtroEncuestaHasta"),advisorIds=surveyAdvisorIds("satisfaccion");
-    const key=`surveys:history:v2:${from||"all"}:${to||"all"}:${advisorIds.sort().join(",")||"all"}`;
+    const from=value("filtroEncuestaDesde"),to=value("filtroEncuestaHasta"),zona=value("filtroEncuestaZona"),advisorIds=surveyAdvisorIds("satisfaccion");
+    const key=`surveys:history:v3:${from||"all"}:${to||"all"}:${zona||"all"}:${advisorIds.sort().join(",")||"all"}`;
     reportSurveys=await cachedQuery(key,()=>{
       // La fecha del reporte es la fecha en que se realizó la encuesta.
       // Esto conserva también las encuestas puerta a puerta (llamada_id NULL).
@@ -1045,12 +1048,13 @@ ${sers}
 
   function populateSurveyFilters(){ populateSurveyAdvisorSelects(); }
   function getFilteredSurveys(){
-    const asesorIds=surveyAdvisorIds("satisfaccion"),from=value("filtroEncuestaDesde"),to=value("filtroEncuestaHasta"),text=value("filtroEncuestaTexto").toLowerCase();
+    const asesorIds=surveyAdvisorIds("satisfaccion"),from=value("filtroEncuestaDesde"),to=value("filtroEncuestaHasta"),zona=value("filtroEncuestaZona"),text=value("filtroEncuestaTexto").toLowerCase();
     return (reportSurveys||surveys).filter(s=>{
       const a=s.perfilescr||{}, l=s.llamadascr||{};
       const search=[a.nombre,a.apellido,a.email,s.codigo_usuario,s.calificacion_servicio,s.calificacion_tecnica,s.calificacion_administrativa,s.agilidad_averias,s.recomendaria,s.recomendacion_felicitacion,s.observacion_servicio,s.observacion_tecnica,s.observacion_administrativa,s.zona,l.cliente,l.zona,l.llamada,l.tipo_gestion,l.observaciones].join(" ").toLowerCase();
       const fechaEncuesta=s.fecha_encuesta||s.created_at?.slice(0,10)||"";
-      return (asesorIds.length>0&&asesorIds.includes(s.asesor_id))&&(!from||fechaEncuesta>=from)&&(!to||fechaEncuesta<=to)&&(!text||search.includes(text));
+      const zonaEncuesta=String(s.zona||l.zona||"").trim();
+      return (asesorIds.length>0&&asesorIds.includes(s.asesor_id))&&(!zona||zonaEncuesta===zona)&&(!from||fechaEncuesta>=from)&&(!to||fechaEncuesta<=to)&&(!text||search.includes(text));
     });
   }
   function renderSurveys(){
@@ -1063,14 +1067,15 @@ ${sers}
     }).join(""):`<tr class="empty-row"><td colspan="18">${surveys.length?"No se encontraron encuestas con los filtros seleccionados.":"No hay encuestas registradas."}</td></tr>`;
   }
   async function clearSurveyFilters(){
-    ["filtroEncuestaDesde","filtroEncuestaHasta","filtroEncuestaTexto"].forEach(x=>{if(id(x))id(x).value="";});
+    ["filtroEncuestaDesde","filtroEncuestaHasta","filtroEncuestaTexto","filtroEncuestaZona"].forEach(x=>{if(id(x))id(x).value="";});
     id("ms-encuesta-asesores-list")?.querySelectorAll("input").forEach(x=>x.checked=true);
     if(id("ms-encuesta-asesores-toggle")) id("ms-encuesta-asesores-toggle").textContent="Todos los asesores";
     reportSurveys=null; renderSurveys();
   }
   function surveyPeriod(){
     const from=value("filtroEncuestaDesde"),to=value("filtroEncuestaHasta");
-    return from||to?`${from?formatDate(from):"Inicio"} – ${to?formatDate(to):"Actual"}`:"Todos los periodos";
+    const periodo=from||to?`${from?formatDate(from):"Inicio"} – ${to?formatDate(to):"Actual"}`:"Todos los periodos";
+    const zona=value("filtroEncuestaZona"); return `${periodo} | Zona: ${zona||"Todas"}`;
   }
   function surveyAdvisorFilterName(){
     const ids=surveyAdvisorCheckedIds("satisfaccion"),source=filterAdvisorsSource();
@@ -1296,13 +1301,13 @@ ${sers}
 
 
   function surveyDate(x){return x.fecha_encuesta||colombiaDateFromTimestamp(x.created_at);}
-  function getFilteredSeguimiento(){const f=value("seg-filter-from"),t=value("seg-filter-to"),uids=surveyAdvisorIds("seguimiento"),u=value("seg-filter-user").toLowerCase(),a=value("seg-filter-att"),p=value("seg-filter-pay");return seguimientoSurveys.filter(x=>{const d=surveyDate(x);return(uids.length>0&&uids.includes(x.asesor_id))&&(!f||d>=f)&&(!t||d<=t)&&(!u||String(x.usuario||"").toLowerCase().includes(u))&&(!a||x.atencion_asesor===a)&&(!p||x.fechas_pago===p);});}
-  function getFilteredServicio(){const f=value("srv-filter-from"),t=value("srv-filter-to"),uids=surveyAdvisorIds("servicio"),u=value("srv-filter-user").toLowerCase(),s=value("srv-filter-service"),r=value("srv-filter-retomar");return servicioSurveys.filter(x=>{const d=surveyDate(x);return(uids.length>0&&uids.includes(x.asesor_id))&&(!f||d>=f)&&(!t||d<=t)&&(!u||String(x.usuario||"").toLowerCase().includes(u))&&(!s||x.servicio_retirado===s)&&(!r||x.interes_retomar===r);});}
+  function getFilteredSeguimiento(){const f=value("seg-filter-from"),t=value("seg-filter-to"),uids=surveyAdvisorIds("seguimiento"),u=value("seg-filter-user").toLowerCase(),z=value("seg-filter-zona"),a=value("seg-filter-att"),p=value("seg-filter-pay");return seguimientoSurveys.filter(x=>{const d=surveyDate(x);return(uids.length>0&&uids.includes(x.asesor_id))&&(!z||String(x.zona||"").trim()===z)&&(!f||d>=f)&&(!t||d<=t)&&(!u||String(x.usuario||"").toLowerCase().includes(u))&&(!a||x.atencion_asesor===a)&&(!p||x.fechas_pago===p);});}
+  function getFilteredServicio(){const f=value("srv-filter-from"),t=value("srv-filter-to"),uids=surveyAdvisorIds("servicio"),u=value("srv-filter-user").toLowerCase(),z=value("srv-filter-zona"),s=value("srv-filter-service"),r=value("srv-filter-retomar");return servicioSurveys.filter(x=>{const d=surveyDate(x);return(uids.length>0&&uids.includes(x.asesor_id))&&(!z||String(x.zona||"").trim()===z)&&(!f||d>=f)&&(!t||d<=t)&&(!u||String(x.usuario||"").toLowerCase().includes(u))&&(!s||x.servicio_retirado===s)&&(!r||x.interes_retomar===r);});}
   const _renderSeg=renderSeguimientoSurveys, _renderSrv=renderServicioSurveys;
   renderSeguimientoSurveys=function(){const rows=getFilteredSeguimiento();const t=id("tabla-seguimiento-encuesta");if(!t)return;t.innerHTML=rows.map(x=>`<tr><td>${escapeHTML(x.perfilescr?[x.perfilescr.nombre,x.perfilescr.apellido].filter(Boolean).join(" ")||x.perfilescr.email||"—":advisorNameById(x.asesor_id))}</td><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.como_se_entero||"—")}</td><td>${escapeHTML(x.fechas_pago)}</td><td>${escapeHTML(x.medio_contrato)}</td><td>${escapeHTML(x.atencion_asesor)}</td><td>${escapeHTML(x.redes_sociales)}</td><td>${escapeHTML(x.cobro_tecnico)}</td><td>${escapeHTML(x.medios_pago)}</td><td>${escapeHTML(x.observacion||"—")}</td><td>${formatDate(surveyDate(x))}</td></tr>`).join("")||'<tr class="empty-row"><td colspan="12">No hay encuestas con los filtros seleccionados.</td></tr>';}
   renderServicioSurveys=function(){const rows=getFilteredServicio();const t=id("tabla-servicio-encuesta");if(!t)return;t.innerHTML=rows.map(x=>`<tr><td>${escapeHTML(x.perfilescr?[x.perfilescr.nombre,x.perfilescr.apellido].filter(Boolean).join(" ")||x.perfilescr.email||"—":advisorNameById(x.asesor_id))}</td><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.servicio_retirado)}</td><td>${escapeHTML(x.motivo_retiro||"—")}</td><td>${escapeHTML(x.interes_retomar)}</td><td>${escapeHTML(x.observaciones||"—")}</td><td>${formatDate(surveyDate(x))}</td></tr>`).join("")||'<tr class="empty-row"><td colspan="8">No hay encuestas con los filtros seleccionados.</td></tr>';}
-  function clearSegFilters(){["seg-filter-from","seg-filter-to","seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>{if(id(k))id(k).value="";}); id("ms-seg-asesores-list")?.querySelectorAll("input").forEach(x=>x.checked=true); id("ms-seg-asesores-toggle")&&(id("ms-seg-asesores-toggle").textContent="Todos los asesores");renderSeguimientoSurveys();}
-  function clearSrvFilters(){["srv-filter-from","srv-filter-to","srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>{if(id(k))id(k).value="";}); id("ms-srv-asesores-list")?.querySelectorAll("input").forEach(x=>x.checked=true); id("ms-srv-asesores-toggle")&&(id("ms-srv-asesores-toggle").textContent="Todos los asesores");renderServicioSurveys();}
+  function clearSegFilters(){["seg-filter-zona","seg-filter-from","seg-filter-to","seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>{if(id(k))id(k).value="";}); id("ms-seg-asesores-list")?.querySelectorAll("input").forEach(x=>x.checked=true); id("ms-seg-asesores-toggle")&&(id("ms-seg-asesores-toggle").textContent="Todos los asesores");renderSeguimientoSurveys();}
+  function clearSrvFilters(){["srv-filter-zona","srv-filter-from","srv-filter-to","srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>{if(id(k))id(k).value="";}); id("ms-srv-asesores-list")?.querySelectorAll("input").forEach(x=>x.checked=true); id("ms-srv-asesores-toggle")&&(id("ms-srv-asesores-toggle").textContent="Todos los asesores");renderServicioSurveys();}
 
   function buildSeguimientoReportHTML(){
     __qlog=[];
@@ -1341,7 +1346,7 @@ ${sers}
     toIds.forEach(k=>{const el=id(k);if(el&&!el.value)el.value=end;});
   }
 
-  document.addEventListener("DOMContentLoaded",()=>{populateSurveyAdvisorSelects();setReportDefaultDates();["seg-filter-from","seg-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();}));["seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>id(k)?.addEventListener("input",renderSeguimientoSurveys));id("seg-filter-clear")?.addEventListener("click",async()=>{clearSegFilters();await loadHistoricalSeguimiento();renderSeguimientoSurveys();});["srv-filter-from","srv-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalServicio();renderServicioSurveys();}));["srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>id(k)?.addEventListener("input",renderServicioSurveys));id("srv-filter-clear")?.addEventListener("click",async()=>{clearSrvFilters();await loadHistoricalServicio();renderServicioSurveys();});
+  document.addEventListener("DOMContentLoaded",()=>{populateSurveyAdvisorSelects();setReportDefaultDates();["seg-filter-zona","seg-filter-from","seg-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();}));["seg-filter-user","seg-filter-att","seg-filter-pay"].forEach(k=>id(k)?.addEventListener("input",renderSeguimientoSurveys));id("seg-filter-clear")?.addEventListener("click",async()=>{clearSegFilters();await loadHistoricalSeguimiento();renderSeguimientoSurveys();});["srv-filter-zona","srv-filter-from","srv-filter-to"].forEach(k=>id(k)?.addEventListener("change",async()=>{await loadHistoricalServicio();renderServicioSurveys();}));["srv-filter-user","srv-filter-service","srv-filter-retomar"].forEach(k=>id(k)?.addEventListener("input",renderServicioSurveys));id("srv-filter-clear")?.addEventListener("click",async()=>{clearSrvFilters();await loadHistoricalServicio();renderServicioSurveys();});
     id("btn-seg-excel")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();downloadSeguimientoExcel(getFilteredSeguimiento());});
     id("btn-srv-excel")?.addEventListener("click",async()=>{await loadHistoricalServicio();downloadServicioExcel(getFilteredServicio());});
     id("btn-seg-preview")?.addEventListener("click",async()=>{await loadHistoricalSeguimiento();renderSeguimientoSurveys();previewReport(buildSeguimientoReportHTML);});
