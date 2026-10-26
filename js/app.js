@@ -766,7 +766,7 @@
     return `<div class="print-chart-card"><h2>${escapeHTML(title)}</h2><div class="print-chart-figure">${svgDonut(segments, centerLabel, centerSub)}<div class="print-legend">${legend}</div></div></div>`;
   }
   function svgBarCompare(items, width, labelW) {
-    const w = width || 520, leftW = labelW || 108, rightW = 34, barH = 15, gap = 8;
+    const w = width || 520, leftW = labelW || 108, hasPct = items.some(i => i.pct !== undefined), rightW = hasPct ? 78 : 34, barH = 15, gap = 8;
     const max = Math.max(1, ...items.map(i => Math.max(i.value, i.value2 || 0)));
     const chartW = w - leftW - rightW;
     const rowH = (items[0] && items[0].value2 !== undefined) ? barH * 2 + 4 : barH;
@@ -781,7 +781,7 @@
       return `<text x="0" y="${y + barH - 4}" font-family="Arial" font-size="8.5" fill="#3c3157">${escapeHTML(it.label)}</text>
         <rect x="${leftW}" y="${y}" width="${chartW}" height="${barH}" rx="4" fill="#efe9f8"/>
         <rect x="${leftW}" y="${y}" width="${w1}" height="${barH}" rx="4" fill="${it.color || "#8064b3"}"/>
-        <text x="${leftW + chartW + 6}" y="${y + barH - 4}" font-family="Arial" font-size="8.5" font-weight="700" fill="#3c3157">${it.value}</text>
+        <text x="${leftW + chartW + 6}" y="${y + barH - 4}" font-family="Arial" font-size="8.5" font-weight="700" fill="#3c3157">${it.value}${it.pct !== undefined ? ` · ${it.pct}%` : ""}</text>
         ${extra}`;
     }).join("");
     const height = items.length ? items.length * (rowH + gap) - gap + 4 : 30;
@@ -1097,7 +1097,7 @@ ${sers}
     return entries.map(([label,value],i)=>{let color=CAT_COLORS[label]||CAT_PALETTE[i%CAT_PALETTE.length];
       if(invert&&(label==="SI"||label==="NO"))color=label==="SI"?"#e74c3c":"#2ecc71";return {label,value,color};});
   }
-  function distributionCardHTML(question,rows,mapper){
+  function distributionCardHTML(question,rows,mapper,showPct){
     __qlog.push({title:question,rows,mapper});
     const invert=/cobr/i.test(question),fold=/enter/i.test(question);
     const segs=countSegments(rows,mapper,{invert,fold});
@@ -1105,7 +1105,7 @@ ${sers}
     if(!rows.length)return `<div class="print-question-card"><h3>${escapeHTML(question)}</h3><p class="print-empty-chart">Sin datos.</p></div>`;
     if(segs.length>5||maxLen>24){
       const lw=Math.min(330,Math.max(110,maxLen*4.9+10));
-      const items=segs.map(s=>({label:s.label,value:s.value,color:s.color}));
+      const items=segs.map(s=>({label:s.label,value:s.value,color:s.color,...(showPct?{pct:Math.round(s.value/rows.length*100)}:{})}));
       return `<div class="print-question-card print-question-wide"><h3>${escapeHTML(question)}</h3>${svgBarCompare(items,900,lw)}</div>`;
     }
     const legend=segs.map(s=>`<span><i class="print-dot" style="background:${s.color}"></i>${escapeHTML(s.label)}<strong>${s.value} · ${Math.round(s.value/rows.length*100)}%</strong></span>`).join("");
@@ -1331,7 +1331,7 @@ ${sers}
     const retSeg=retCats.map((label,i)=>({label,value:rows.filter(x=>(x.interes_retomar||"Sin respuesta")===label).length,color:retColors[i]}));
     const comparativo=advisorSurveySummary(rows).slice(0,10).map(g=>({label:g.name,value:g.total,color:"#8064b3"}));
     const chartsHTML=`<section class="print-charts">${donutCardHTML("Servicio retirado",svcSeg,rows.length,"total")}${donutCardHTML("¿Interesado en retomar?",retSeg,rows.length,"total")}<div class="print-chart-card" style="grid-column:1 / -1"><h2>Retiros por asesor</h2>${svgBarCompare(comparativo,900)}</div></section>`;
-    const questionsHTML=`<section class="print-question-grid">${distributionCardHTML("Pregunta 1 — ¿Qué servicio retiró?",rows,x=>x.servicio_retirado)}${distributionCardHTML("Pregunta 2 — Motivo del retiro",rows,x=>x.motivo_retiro)}${distributionCardHTML("Pregunta 3 — ¿Estaría interesado en retomar el servicio?",rows,x=>x.interes_retomar)}${distributionCardHTML("Observaciones",rows,x=>x.observaciones?"Con observación":"Sin observación")}</section>`;
+    const questionsHTML=`<section class="print-question-grid">${distributionCardHTML("Pregunta 1 — ¿Qué servicio retiró?",rows,x=>x.servicio_retirado)}${distributionCardHTML("Pregunta 2 — Motivo del retiro",rows,x=>x.motivo_retiro,true)}${distributionCardHTML("Pregunta 3 — ¿Estaría interesado en retomar el servicio?",rows,x=>x.interes_retomar)}${distributionCardHTML("Observaciones",rows,x=>x.observaciones?"Con observación":"Sin observación")}</section>`;
     const trs=rows.map(x=>`<tr><td>${escapeHTML(x.perfilescr?[x.perfilescr.nombre,x.perfilescr.apellido].filter(Boolean).join(" ")||x.perfilescr.email||"—":advisorNameById(x.asesor_id))}</td><td>${escapeHTML(x.usuario)}</td><td>${escapeHTML(x.zona||"—")}</td><td>${escapeHTML(x.servicio_retirado)}</td><td>${escapeHTML(x.motivo_retiro||"—")}</td><td>${escapeHTML(x.interes_retomar)}</td><td>${escapeHTML(x.observaciones||"—")}</td><td>${formatDate(surveyDate(x))}</td></tr>`).join("");
     return `<div class="print-report-sheet">${config.logo_url?`<div class="print-logo"><img src="${config.logo_url}" alt="Logo"></div>`:""}<div class="print-header"><div><span class="print-kicker">ENCUESTA DE SERVICIO</span><h1>Reporte de retiros de servicio</h1><p>${rows.length} registro${rows.length===1?"":"s"}</p></div><div class="print-generated">Generado: ${new Date().toLocaleString("es-CO")}</div></div><div class="print-summary"><div class="print-summary-card"><span>Total retiros</span><strong>${rows.length}</strong></div><div class="print-summary-card"><span>Interesados en retomar</span><strong>${rows.filter(x=>x.interes_retomar==="SI").length}</strong></div><div class="print-summary-card"><span>No interesados</span><strong>${rows.filter(x=>x.interes_retomar==="NO").length}</strong></div></div>${chartsHTML}${questionsHTML}${advisorSectionHTML()}<section class="print-table-section"><div class="print-table-title"><div><span class="print-kicker">DETALLE</span><h2>Encuestas de servicio</h2></div></div><div class="print-table-scroll"><table><thead><tr><th>Asesor</th><th>Usuario</th><th>Zona</th><th>Servicio</th><th>Motivo retiro</th><th>Retomaría</th><th>Observaciones</th><th>Fecha</th></tr></thead><tbody>${trs||'<tr><td colspan="7" class="print-empty-row">No hay registros.</td></tr>'}</tbody></table></div></section></div>`;
   }
